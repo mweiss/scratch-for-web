@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>scratch-block-model tests</title>
+<script type="text/javascript" src="http://yui.yahooapis.com/3.4.1/build/yui/yui-debug.js"></script>
+<script type="text/javascript" src="../../../build/scratch-for-web-loader/scratch-for-web-loader.js"></script>
+</head>
+<body class="yui3-skin-sam">
+<h1>scratch-block-model Tests</h1>
+<div id="testSprite" style="position: absolute; top: 50px;">Testing sprite</div>
+<script type="text/javascript">
+
+YUI({
+  filter : 'debug'
+}).use("scratch-block-model", function(Y) {
+  
+  var whileInnerBlocks = new Y.ModelList();
+  
+  var moveBlock = new Y.MoveBlockModel({
+    inputBlocks : {
+      numSteps : new Y.ConstantBlockModel({
+        value : 100
+      })
+    }
+  });
+  
+  var incrementBlock = new Y.IncrementVariableBlockModel({
+    inputBlocks : {
+      x : new Y.VariableBlockModel({
+        variableName : 'x'
+      })
+    }
+  });
+  
+  whileInnerBlocks.add([moveBlock, incrementBlock]);
+  
+  var lessThanBlock = new Y.LessThanBlockModel({
+    inputBlocks : {
+      left : new Y.VariableBlockModel({
+        variableName : 'x'
+      }),
+      right : new Y.ConstantBlockModel({
+        value : 3
+      })
+    }
+  });
+  
+  var whileBlock = new Y.WhileBlockModel({
+    inputBlocks : {
+      expression : lessThanBlock
+    },
+    
+    innerBlocks : whileInnerBlocks
+  });
+  
+  var variables = {
+    x : 0
+  };
+  whileBlock.evaluate({
+    sprite : Y.one('#testSprite'),
+    getVariable : function(name) {
+      return {
+        set : function(val) {
+          variables[name] = val;
+        },
+        
+        get : function() {
+          return variables[name];
+        }
+      };
+    }
+  });
+    
+});
+</script>
+</body>
+</html>

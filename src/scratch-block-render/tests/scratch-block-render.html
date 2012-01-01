@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>scratch-block-model tests</title>
+<script type="text/javascript" src="http://yui.yahooapis.com/3.4.1/build/yui/yui-debug.js"></script>
+<script type="text/javascript" src="../../../build/scratch-for-web-loader/scratch-for-web-loader.js"></script>
+</head>
+<body class="yui3-skin-sam">
+<h1>scratch-block-render Tests</h1>
+<div id="testContainer"></div>
+<script type="text/javascript">
+YUI({
+  filter : 'debug'
+}).use("scratch-block-render", function(Y) {
+  
+  var moveBlock = new Y.MoveBlockModel({
+    inputBlocks : {
+      numSteps : new Y.ConstantBlockModel({
+        value : 100
+      })
+    }
+  });
+  
+  var basicRenderBlock = new Y.BasicBlockRender({
+    block : moveBlock,
+    parent : Y.one('#testContainer')
+  });
+  basicRenderBlock.render();
+});
+</script>
+</body>
+</html>

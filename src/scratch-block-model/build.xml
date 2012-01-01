@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<!-- scratch-for-web Module Build File --> 
+<project name="scratch-for-web" default="local"> 
+    <description>scratch-for-web Build File</description> 
+    <property file="build.properties" /> 
+    <import file="${builddir}/3.x/bootstrap.xml" description="Default Build Properties and Targets" /> 
+</project>

@@ -1,0 +1,3 @@
+{
+	scratchBlockRenderTitle: "scratch-block-render"
+}

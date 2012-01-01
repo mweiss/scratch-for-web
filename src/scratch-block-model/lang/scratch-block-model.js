@@ -1,0 +1,3 @@
+{
+	scratchBlockModelTitle: "scratch-block-model"
+}
