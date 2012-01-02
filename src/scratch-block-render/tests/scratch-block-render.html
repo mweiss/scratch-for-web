@@ -9,9 +9,10 @@
 <body class="yui3-skin-sam">
 <h1>scratch-block-render Tests</h1>
 <div id="testContainer"></div>
+<div id="testContainer2"></div>
 <script type="text/javascript">
 YUI({
-  filter : 'debug'
+  filter : 'raw'
 }).use("scratch-block-render", function(Y) {
   
   var moveBlock = new Y.MoveBlockModel({
@@ -22,11 +23,26 @@ YUI({
     }
   });
   
-  var basicRenderBlock = new Y.BasicBlockRender({
+  var moveBlock2 = new Y.MoveBlockModel({
+    inputBlocks : {
+      numSteps : new Y.ConstantBlockModel({
+        value : 30
+      })
+    }
+  });
+  
+  var basicRenderBlock = new Y.GraphicsBlockRender({
     block : moveBlock,
     parent : Y.one('#testContainer')
   });
   basicRenderBlock.render();
+  
+  
+  var basicRenderBlock2 = new Y.GraphicsBlockRender({
+    block : moveBlock2,
+    parent : Y.one('#testContainer2')
+  });
+  basicRenderBlock2.render();
 });
 </script>
 </body>
