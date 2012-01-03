@@ -1,1 +1,1 @@
-div.basicBlock{border-radius:5px;display:inline-block;position:relative;color:white;text-shadow:black 1px 1px 1px;border-radius:5px;}div.basicBlock .bd{position:absolute;white-space:nowrap;padding:10px;}div.basicBlock div.front1{z-index:1;}div.basicBlock div.front2{z-index:2;}div.basicBlock div.front3{z-index:3;}
+div.basicBlock{border-radius:5px;display:inline-block;position:relative;color:white;text-shadow:black 1px 1px 1px;border-radius:5px;}div.relativeBlock{display:inline-block;}div.basicBlock .bd{position:absolute;white-space:nowrap;padding:10px;}

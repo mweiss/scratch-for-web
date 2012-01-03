@@ -64,38 +64,65 @@ var RoundedBasicBlock = Y.Base.create("roundedBasicBlock", Y.Shape, [],{
     
 var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   container : '<div class="basicBlock"></div>' ,
-  template : '<div class=\"front1 bd\">{statement}</div>',
+  template : '<div class=\"bd\">{statement}</div>',
   
   basicBlock : null,
   
   initializer : function() {
     
   },
+  _renderInnerBlock : function() {
+    var block = this.get('block'), 
+        inputBlocks = block.get('inputBlocks'), 
+        idToBlockMap = {}, 
+        ctx = {statement : block.statement},
+        innerBlock;
+    
+    // Populate the id map and ctx
+    Y.each(inputBlocks, function(value, key) {
+      var id = Y.guid();
+      idToBlockMap[id] = value;
+      ctx[key] = '<div id="' + id + '" class="relativeBlock"></div>';
+    });
+    
+    // Create a div for each inner block we need to create
+    innerBlock = Y.Node.create(Y.substitute(this.template, ctx, null, true));
+    
+    // Render each input block in the newly created node
+    Y.each(idToBlockMap, function(block, id) {
+      var parent = innerBlock.one('#' + id);
+      this._renderBlock(block, parent);
+    }, this);
+    return innerBlock;
+  },
+  
+  _renderBlock : function() {
+    
+  },
+  
   render : function() {
     var block = this.get('block');
-    this.container.setContent(Y.Lang.sub(this.template, {statement : block.statement}));
-
     
     if (!this.container.inDoc()) {
       this.get('parent').append(this.container);
     }
-    var basicBlock = new Y.Graphic({render : this.container});
+    var basicBlock = new Y.Graphic({render : this.container});    
+    this.container.appendChild(this._renderInnerBlock());
+
     var statement = this.container.one('.bd');
     var region = statement.get("region");
-    var width = region.right - region.left, height = region.bottom - region.top;
-    
+    var width = region.width, height = region.height;
     basicBlock.addShape({
       type: RoundedBasicBlock,
-      width: width, // TODO: control this padding more betta
+      width: width,
       height: height,
       x: 0,
       y: 0,
       fill: {
         color : '#3851d2'
       },
-      stroke: {
-        weight: 1,
-        color: "#344c94"
+      stroke : {
+        weight : 0
       },
       showHeader : block._topBlocksAllowed,
       showFooter : block._bottomBlocksAllowed
@@ -109,23 +136,11 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   },
   
   _bringToFront : function(e) {
-    var statement = this.container.one('.bd'), bbn = Y.one(this.basicBlock.get('node'));
-    statement.removeClass('front1');
-    statement.addClass('front3');
-    bbn.addClass('front2');
+    this.container.setStyle("zIndex", 1);
   },
   
   _bringToBack : function(e) {
-    var statement = this.container.one('.bd'), bbn = Y.one(this.basicBlock.get('node'));
-    statement.removeClass('front3');
-    bbn.removeClass('front2');
-    statement.addClass('front1');
-  },
-  
-  _setZIndex : function(z1, z2) {
-    var statement = this.container.one('.bd'), bbn = Y.one(this.basicBlock.get('node'));
-    statement.setStyle('z-index', z1);
-    bbn.setStyle('z-index', z2);
+    this.container.setStyle("zIndex", 0);
   }
 }, {
   ATTRS : {
@@ -141,76 +156,3 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
 
 Y.GraphicsBlockRender = GraphicsBlockRender;
 
-var BasicBlockRender = Y.Base.create("baseBlockRender", Y.View, [], {
-  headTemplate : '<div class="hd">&nbsp;</div>',
-  footerTemplate : '<div class="ft">&nbsp;</div>',
-  template : '{headTemplate}' +
-             '<div class="bd">{statement}</div>' +
-             '{footerTemplate}',
-  container : '<div class="basicBlock"></div>',
-  initializer : function() {
-    
-  },
-  render : function() {
-    var ctx = this._buildContext();
-    this.container.setContent(Y.Lang.sub(this.template, ctx));
-    if (!this.container.inDoc()) {
-      this.get('parent').append(this.container);
-      this.container.plug(Y.Plugin.Drag, { dragMode: 'intersect' });
-      this.container.plug(Y.Plugin.Drop);
-      this.container.drop.on('drop:enter', function(e) {
-        console.log(e);
-      }, this.container);
-      this.container.drop.on('drop:exit', function(e) {
-        console.log(e);
-      }, this.container);
-    }
-  },
-  _buildContext : function() {
-    var block = this.get('block'),
-        headTemplate = "",
-        footerTemplate = "";
-    if (block._topBlocksAllowed) {
-      headTemplate = this.headTemplate;
-    }
-    if (block._bottomBlocksAllowed) {
-      footerTemplate = this.footerTemplate;
-    }
-    return {
-      headTemplate : headTemplate,
-      footerTemplate : footerTemplate,
-      statement : this.get('block').statement
-    };
-  }
-}, {
-  ATTRS : {
-    'block' : {
-      value : null,
-      writeOnce : true
-    },
-    'parent' : {
-      value : null
-    }
-  }
-});
-
-var ControlBlockRender = Y.Base.create("innerBlockRender", BasicBlockRender, [], {
-  template : '<div class="topBlock">' +
-             '  <div class="hd">&nbsp;</div>' +
-             '  <div class="bd">{statement}</div>' +
-             '  <div class="ft">&nbsp;</div>' +
-             '</div>' +
-             '<div class="middleBlock">' +
-             '  <div class="contentsWrapper">' +
-             '    <div class="contents">&nbsp;</div>' +
-             '  </div>' +
-             '</div>' +
-             '<div class="bottomBlock">' +
-             '  <div class="hd">&nbsp;</div>' +
-             '  <div class="bd">&nbsp;</div>' +
-             '  <div class="ft">&nbsp;</div>' +
-             '</div>',
-  container : '<div class="controlBlock"></div>'
-});
-
-Y.BasicBlockRender = BasicBlockRender;

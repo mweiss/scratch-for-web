@@ -11,7 +11,7 @@ YUI().use(function(Y) {
 			'clicrdv': {
 				base: '/Users/michaelweiss/Programs/scratch-for-web/build/',
 				combine: false,
-				modules: {"scratch-block-model":{"path":"scratch-block-model/scratch-block-model.js","requires":["widget","intl","model","model-list","node-screen"],"skinnable":true},"scratch-block-render":{"path":"scratch-block-render/scratch-block-render.js","requires":["base","view","scratch-block-model","dd-plugin","dd-drop-plugin","graphics"],"skinnable":true}}
+				modules: {"scratch-block-model":{"path":"scratch-block-model/scratch-block-model.js","requires":["widget","intl","model","model-list","node-screen"],"skinnable":true},"scratch-block-render":{"path":"scratch-block-render/scratch-block-render.js","requires":["base","view","scratch-block-model","dd-plugin","dd-drop-plugin","graphics","substitute"],"skinnable":true}}
 			}
 		}
 	};
