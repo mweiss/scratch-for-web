@@ -1,18 +1,16 @@
 div.basicBlock {
-  border-radius: 5px;
   display: inline-block;
+  border-radius: 5px;
   position: relative;
   color: white;
   text-shadow: black 1px 1px 1px;
-  border-radius: 5px
+  border-radius: 5px;
+  padding: 5px 3px 10px 3px;
 }
 
-div.relativeBlock {
-  display: inline-block;
-}
 
-div.basicBlock .bd {
-  position: absolute; 
-  white-space: nowrap;
-  padding: 10px;
+div.basicBlock div.inputParentBlock {
+  float: left;
+  padding: 0px 3px 0px 3px;
+  position: relative;
 }

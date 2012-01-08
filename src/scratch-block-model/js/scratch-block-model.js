@@ -25,6 +25,9 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
 	//CSS_PREFIX: "scratch-block-model",
 
 	ATTRS: {
+    nextBlock : {
+      value : null
+    },
     
     innerBlocks : {
       value : null
@@ -56,6 +59,7 @@ Y.MoveBlockModel = Y.Base.create('moveBlockModel', BaseBlockModel, [],{
 
 Y.ConstantBlockModel = Y.Base.create('ConstantBlockModel', BaseBlockModel,[], {
   _returnsValue : true,
+  type : 'constant',
   
   evaluate : function(ctx) {
     return this.get('value');
