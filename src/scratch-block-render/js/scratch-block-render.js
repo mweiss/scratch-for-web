@@ -5,6 +5,7 @@
  */
 
 var RoundedBasicBlock = Y.Base.create("roundedBasicBlock", Y.Shape, [],{
+  
   _draw: function() {
     var w = this.get("width"),
         h = this.get("height"),
@@ -68,7 +69,145 @@ var RoundedBasicBlock = Y.Base.create("roundedBasicBlock", Y.Shape, [],{
     }
   }, Y.Shape.ATTRS)
 });
+
+
+var RoundedContainerBlock = Y.Base.create("roundedContainerBlock", RoundedBasicBlock, [], {
+  _draw : function() {
+    var w = this.get("width"),
+        h = this.get("height"),
+        ew = this.get("ellipseWidth"),
+        eh = this.get("ellipseHeight"),
+        showFooter = this.get("showFooter"),
+        showHeader = this.get("showHeader"),
+        connectorIndent = this.get("connectorIndent"),
+        connectorWidth = this.get("connectorWidth"),
+        bodyHeight = this.get("bodyHeight"),
+        footerHeight = this.get("footerHeight"),
+        leftConnectorWidth = this.get("leftConnectorWidth");
     
+    this.clear();
+    this.moveTo(0, eh);
+    
+    // Bottom of the footer    
+    if (showFooter) { 
+      this.lineTo(0, h - 2 * eh);
+      this.quadraticCurveTo(0, h - eh, ew, h - eh);
+      this.lineTo(connectorIndent, h - eh);
+      this.quadraticCurveTo(connectorIndent, h, connectorIndent + ew, h);
+      this.lineTo(connectorIndent + connectorWidth - ew, h);
+      this.quadraticCurveTo(connectorIndent + connectorWidth, h, connectorIndent + connectorWidth, h - eh);
+      this.lineTo(w - ew, h - eh);
+      this.quadraticCurveTo(w, h - eh, w, h - 2 * eh);
+    }
+    else {
+      this.lineTo(0, h - eh);
+      this.quadraticCurveTo(0, h, ew, h);
+      this.lineTo(w - ew, h);
+      this.quadraticCurveTo(w, h, w, h - eh);
+    }
+    this.lineTo(w, h - (footerHeight - eh));
+    
+    // Top of the footer
+    this.quadraticCurveTo(w, h - footerHeight, w - eh, h - footerHeight);
+    this.lineTo(leftConnectorWidth + connectorIndent + connectorWidth, h - footerHeight);
+    this.quadraticCurveTo(leftConnectorWidth + connectorIndent + connectorWidth, 
+      h - footerHeight + eh, 
+      leftConnectorWidth + connectorIndent + connectorWidth - ew, 
+      h - footerHeight + eh);
+    this.lineTo(leftConnectorWidth + connectorIndent + ew, h - footerHeight + eh);
+    this.quadraticCurveTo(leftConnectorWidth + connectorIndent, 
+      h - footerHeight + eh, 
+      leftConnectorWidth + connectorIndent,
+      h - footerHeight);
+    this.lineTo(leftConnectorWidth + ew, h - footerHeight);
+    
+    // Bottom of the header
+    this.quadraticCurveTo(leftConnectorWidth, h - footerHeight, leftConnectorWidth, h - footerHeight - eh);
+    this.lineTo(leftConnectorWidth, bodyHeight + eh);
+    this.quadraticCurveTo(leftConnectorWidth, bodyHeight, leftConnectorWidth + ew, bodyHeight);
+    this.lineTo(leftConnectorWidth + connectorIndent, bodyHeight);
+    this.quadraticCurveTo(leftConnectorWidth + connectorIndent, 
+      bodyHeight + eh, 
+      leftConnectorWidth + connectorIndent + ew,
+      bodyHeight + eh);
+    this.lineTo(leftConnectorWidth + connectorIndent + connectorWidth - ew, bodyHeight + eh);
+    this.quadraticCurveTo(leftConnectorWidth + connectorIndent + connectorWidth,
+      bodyHeight + eh,
+      leftConnectorWidth + connectorIndent + connectorWidth,
+      bodyHeight);
+    this.lineTo(w - ew, bodyHeight);
+    this.quadraticCurveTo(w, bodyHeight, w, bodyHeight - eh);
+    this.lineTo(w, eh);
+    
+    // Top of the header
+    this.quadraticCurve(w, 0, w - ew, 0);
+    if (showHeader) {
+      this.lineTo(connectorIndent + connectorWidth, 0);
+      this.quadraticCurveTo(connectorIndent + connectorWidth, eh, connectorIndent + connectorWidth - ew, eh);
+      this.lineTo(connectorIndent + ew, eh);
+      this.quadraticCurveTo(connectorIndent, eh, connectorIndent, 0);
+    }
+    this.lineTo(ew, 0);
+    this.quadraticCurveTo(0, 0, 0, eh);
+    this.end();
+  }
+}, {
+  NAME: "roundedContainerBlock",
+  ATTRS: Y.mix({
+    bodyHeight : {
+      value : 15
+    },
+    leftConnectorWidth : {
+      value : 15
+    },
+    footerHeight : {
+      value : 25
+    }
+  }, RoundedBasicBlock.ATTRS)
+});
+/**
+ * This is a prototype class for rendering a list of block commands.
+ */
+var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [], {
+  container : '<div class="blockList"></div>',
+  
+  render : function() {
+    var blockList = this.get('blockList');
+    if (!this.container.inDoc()) {
+      this.get('parent').append(this.container);
+    }
+    blockList.each(function(block) {
+      // Wrap the block wrapper
+      var blockWrapper = Y.Node.create('<div class="blockWrapper"></div>'), 
+          region,
+          graphicsBlock;
+      this.container.append(blockWrapper);
+      graphicsBlock = new Y.GraphicsBlockRender({
+        block : block,
+        parent : blockWrapper
+      });
+      graphicsBlock.render();
+      region = graphicsBlock.container.get('region');
+      blockWrapper.setStyle('width', region.width);
+      blockWrapper.setStyle('height', region.height);
+    }, this);
+  }
+}, {
+  ATTRS : {
+    'blockList' : {
+      value : null
+    },
+    'parent' : {
+      value : null
+    }
+  }
+});
+
+Y.GraphicsBlockListRender = GraphicsBlockListRender;
+
+/**
+ * This is a prototype class for using YUI graphics to render a scratch block.
+ */
 var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   container : '<div class="basicBlock"></div>',  
   blockBody : null,
@@ -147,8 +286,22 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     newBlock.render();
   },
   
+  _renderInnerBlock : function() {
+    var block = this.get('block'), innerBlocks = this.get('innerBlocks');
+    if (block._innerBlocksAllowed) {
+      var gbList = new GraphicsBlockListRender({
+        parent : this.parent,
+        blockList : innerBlocks
+      });
+      // TODO:
+      // Indent as far as the width of the left bar, for now we'll say it's 15, but
+      // we need to get this property dynamically
+      gbList.container.setStyle('margin-left', 15);      
+    }
+  },
+  
   render : function() {
-    var block = this.get('block'), container = this.container, basicBlock;
+    var block = this.get('block'), container = this.container, basicBlock, region, width, height, bodyWidth, bodyHeight;
     
     // Make sure the container is in the document
     if (!container.inDoc()) {
@@ -156,24 +309,49 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     }
     basicBlock = new Y.Graphic({render : container});    
     this._renderBody();
+    bodyWidth = container.get("region").bodyWidth;
+    bodyHeight = container.get("region").bodyHeight;
+    this._renderInnerBlock();
+    region = container.get("region");
+    width = region.width;
+    height = region.height;
     
-    var region = container.get("region");
-    var width = region.width, height = region.height;
-    basicBlock.addShape({
-      type: RoundedBasicBlock,
-      width: width,
-      height: height,
-      x: 0,
-      y: 0,
-      fill: {
-        color : this.get('blockFillColor')
-      },
-      stroke : {
-        weight : 0
-      },
-      showHeader : block._topBlocksAllowed,
-      showFooter : block._bottomBlocksAllowed
-    });
+    if (this._innerBlocksAllowed) {
+      basicBlock.addShare({
+        type: RoundedContainerBlock,
+        width: bodyWidth,
+        height: height + 25, // TODO: come up with a better way of doing the footer height
+        bodyHeight: bodyHeight,
+        x: 0,
+        y: 0,
+        fill: {
+          color : this.get('blockFillColor')
+        },
+        stroke : {
+          weight : 0
+        },
+        showHeader : block._topBlocksAllowed,
+        showFooter : block._bottomBlocksAllowed
+      });
+    }
+    else {
+      basicBlock.addShape({
+        type: RoundedBasicBlock,
+        width: width,
+        height: height + (block._bottomBlocksAllowed ? 5 : 0),
+        x: 0,
+        y: 0,
+        fill: {
+          color : this.get('blockFillColor')
+        },
+        stroke : {
+          weight : 0
+        },
+        showHeader : block._topBlocksAllowed,
+        showFooter : block._bottomBlocksAllowed
+      });
+    }
+    
 
     this.container.plug(Y.Plugin.Drag, { dragMode: 'intersect' });
     this.container.plug(Y.Plugin.Drop);

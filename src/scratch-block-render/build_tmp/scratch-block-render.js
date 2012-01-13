@@ -70,7 +70,44 @@ var RoundedBasicBlock = Y.Base.create("roundedBasicBlock", Y.Shape, [],{
     }
   }, Y.Shape.ATTRS)
 });
-    
+
+/**
+ * This is a prototype class for rendering a list of block commands.
+ */
+var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [], {
+  container : '<div class="blockList"></div>',
+  
+  render : function() {
+    var blockList = this.get('blockList');
+    blockList.each(function(block) {
+      // Wrap the block wrapper
+      var blockWrapper = Y.Node.create('<div class="blockWrapper"></div>'), 
+          region,
+          graphicsBlock;
+      this.container.append(blockWrapper);
+      graphicsBlock = new Y.GraphicsBlockRender({
+        block : block,
+        parent : blockWrapper
+      });
+      graphicsBlock.render();
+      region = graphicsBlock.container.get('region');
+      blockWrapper.setStyle('width', region.width);
+      blockWrapper.setStyle('height', region.height);
+    }, this);
+  }
+}, {
+  ATTRS : {
+    'blockList' : {
+      value : null
+    }
+  }
+});
+
+Y.GraphicsBlockListRender = GraphicsBlockListRender;
+
+/**
+ * This is a prototype class for using YUI graphics to render a scratch block.
+ */
 var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   container : '<div class="basicBlock"></div>',  
   blockBody : null,
@@ -164,7 +201,7 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     basicBlock.addShape({
       type: RoundedBasicBlock,
       width: width,
-      height: height,
+      height: height + (block._bottomBlocksAllowed ? 5 : 0),
       x: 0,
       y: 0,
       fill: {

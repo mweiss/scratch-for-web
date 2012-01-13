@@ -17,6 +17,7 @@ YUI({
 }).use("scratch-block-render", function(Y) {
   
   var moveBlock = new Y.MoveBlockModel({
+    id : "one",
     inputBlocks : {
       numSteps : new Y.ConstantBlockModel({
         value : 100
@@ -25,6 +26,7 @@ YUI({
   });
   
   var moveBlock2 = new Y.MoveBlockModel({
+    id : "two",
     inputBlocks : {
       numSteps : new Y.ConstantBlockModel({
         value : 30
@@ -32,19 +34,14 @@ YUI({
     }
   });
   
-  var basicRenderBlock = new Y.GraphicsBlockRender({
-    block : moveBlock,
-    parent : Y.one('#testContainer')
+  var blockList = new Y.ModelList();
+  blockList.add(moveBlock);
+  blockList.add(moveBlock2);
+  var blockList = new Y.GraphicsBlockListRender({
+    container : Y.one('#testContainer'),
+    blockList : blockList
   });
-  basicRenderBlock.render();
-  
-  /*
-  var basicRenderBlock2 = new Y.GraphicsBlockRender({
-    block : moveBlock2,
-    parent : Y.one('#testContainer2')
-  });
-  basicRenderBlock2.render();
-  */
+  blockList.render();
 });
 </script>
 </body>

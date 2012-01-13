@@ -27,10 +27,6 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
 	//CSS_PREFIX: "scratch-block-model",
 
 	ATTRS: {
-    nextBlock : {
-      value : null
-    },
-    
     innerBlocks : {
       value : null
     },
