@@ -37,11 +37,33 @@ YUI({
   var blockList = new Y.ModelList();
   blockList.add(moveBlock);
   blockList.add(moveBlock2);
-  var blockList = new Y.GraphicsBlockListRender({
-    container : Y.one('#testContainer'),
-    blockList : blockList
+  
+  var lessThanBlock = new Y.LessThanBlockModel({
+    inputBlocks : {
+      left :  new Y.ConstantBlockModel({
+        value : 4
+      }),
+      right : new Y.ConstantBlockModel({
+        value : 3
+      })
+    }
   });
-  blockList.render();
+  
+  var whileBlock = new Y.WhileBlockModel({
+    inputBlocks : {
+      expression : lessThanBlock
+    },
+    
+    innerBlocks : blockList
+  });
+  
+  var whileRenderBlock = new Y.GraphicsBlockRender({
+    parent : Y.one('#testContainer'),
+    block : whileBlock,
+    blockFillColor : '#d89d00'
+  });
+  
+  whileRenderBlock.render();
 });
 </script>
 </body>

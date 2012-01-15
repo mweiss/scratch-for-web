@@ -72,9 +72,8 @@ Y.ConstantBlockModel = Y.Base.create('ConstantBlockModel', BaseBlockModel,[], {
 
 Y.LessThanBlockModel = Y.Base.create('LessThanBlockModel', BaseBlockModel, [],{
   _returnsValue : true,
-  
+  statement : '{left} < {right}',
   initialize : function() {
-    this.set('statement', '{left} < {right}');
   },
   
   evaluate : function(ctx) {
@@ -111,9 +110,8 @@ Y.VariableBlockModel = Y.Base.create('VariableBlockModel', BaseBlockModel, [],{
 
 Y.IncrementVariableBlockModel = Y.Base.create('IncrementBlockModel', BaseBlockModel, [], {
   _returnsValue : true,
-  
+  statement : 'increment {x}',
   initialize : function() {
-    this.set('statement', 'increment {x}');
   },
   
   evaluate : function(ctx) {
@@ -127,8 +125,8 @@ Y.WhileBlockModel = Y.Base.create('whileBlockModel', BaseBlockModel, [], {
   _topBlocksAllowed : true,
   _bottomBlocksAllowed : true,
   
+  statement : 'while {expression}',
   initialize : function() {
-    this.set('statement', 'while {expression}');
   },
   
   evaluate : function(ctx) {

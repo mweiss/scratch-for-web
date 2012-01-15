@@ -140,7 +140,7 @@ var RoundedContainerBlock = Y.Base.create("roundedContainerBlock", RoundedBasicB
     this.lineTo(w, eh);
     
     // Top of the header
-    this.quadraticCurve(w, 0, w - ew, 0);
+    this.quadraticCurveTo(w, 0, w - ew, 0);
     if (showHeader) {
       this.lineTo(connectorIndent + connectorWidth, 0);
       this.quadraticCurveTo(connectorIndent + connectorWidth, eh, connectorIndent + connectorWidth - ew, eh);
@@ -236,8 +236,10 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       statement = block.statement;
     }    
     
+    // escape the statement
+    statement = Y.Escape.html(statement);
     // Split up the statement into blocks that can be centered vertically later
-    var variableRegex = /\{[^}]+\}/,
+    var variableRegex = /\{[^}]+\}/g,
         splitStatement = statement.split(variableRegex),
         matches = statement.match(variableRegex),
         newStatement = "";
@@ -254,8 +256,10 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       }
     });
 
+    var subbedVal = Y.substitute(newStatement, ctx);
+
     // Add the block to the container
-    container.appendChild(Y.substitute(newStatement, ctx));
+    container.appendChild(subbedVal);
     
     // Render each input block in the newly created node and update the max height property
     Y.each(idToBlockMap, function(block, id) {
@@ -280,23 +284,29 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     var region = container.get("region");
     var newBlock = new GraphicsBlockRender({
       block : block,
-      blockFillColor : '#999999',
+      blockFillColor : block.type === 'constant' ? '#999999' : '#55BA00', // TODO : remove
       container : parent
     });
     newBlock.render();
   },
   
-  _renderInnerBlock : function() {
-    var block = this.get('block'), innerBlocks = this.get('innerBlocks');
+  _renderInnerBlock : function(bodyHeight) {
+    var block = this.get('block'), innerBlocks = block.get('innerBlocks');
     if (block._innerBlocksAllowed) {
       var gbList = new GraphicsBlockListRender({
-        parent : this.parent,
+        parent : this.container,
         blockList : innerBlocks
       });
+      gbList.render();
       // TODO:
       // Indent as far as the width of the left bar, for now we'll say it's 15, but
       // we need to get this property dynamically
-      gbList.container.setStyle('margin-left', 15);      
+      
+      // TODO: I NEED TO RETHINK THIS
+      var paddingLeft = parseInt(this.container.getStyle('paddingLeft').split("px")[0], 10);
+      var paddingTop = parseInt(this.container.getStyle('paddingTop').split("px")[0], 10);
+      gbList.container.setStyle('marginLeft', 15 - paddingLeft);   
+      gbList.container.setStyle('marginTop', bodyHeight - paddingTop);
     }
   },
   
@@ -309,18 +319,18 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     }
     basicBlock = new Y.Graphic({render : container});    
     this._renderBody();
-    bodyWidth = container.get("region").bodyWidth;
-    bodyHeight = container.get("region").bodyHeight;
-    this._renderInnerBlock();
+    bodyWidth = container.get("region").width;
+    bodyHeight = container.get("region").height;
+    this._renderInnerBlock(bodyHeight);
     region = container.get("region");
     width = region.width;
     height = region.height;
     
-    if (this._innerBlocksAllowed) {
-      basicBlock.addShare({
+    if (block._innerBlocksAllowed) {
+      basicBlock.addShape({
         type: RoundedContainerBlock,
         width: bodyWidth,
-        height: height + 25, // TODO: come up with a better way of doing the footer height
+        height: height + 20, // TODO: come up with a better way of doing the footer height, also why can't this be 25?
         bodyHeight: bodyHeight,
         x: 0,
         y: 0,
