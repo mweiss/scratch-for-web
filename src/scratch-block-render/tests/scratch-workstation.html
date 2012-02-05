@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>scratch-block-model tests</title>
+<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.4.1/build/cssreset/cssreset-min.css">
+<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.4.1/build/cssgrids/grids-min.css">
+
+<script type="text/javascript" src="http://yui.yahooapis.com/3.4.1/build/yui/yui-debug.js"></script>
+<script type="text/javascript" src="../../../build/scratch-for-web-loader/scratch-for-web-loader.js"></script>
+<style type="text/css">
+  div.blockPrototypeWrapper {
+    padding : 10px;
+  }
+  
+  div.spriteScript {
+    height: 800px;
+    position: relative;
+  }
+</style>
+</head>
+<body class="yui3-skin-sam">
+<h1>scratch-block-render Tests</h1>
+<div id="testContainer"></div>
+<script type="text/javascript">
+YUI({
+  filter : 'raw'
+}).use("scratch-block-render", function(Y) {
+  var workstation = new Y.ScratchWorkstation({
+    container : Y.one("#testContainer")
+  });
+  workstation.render();
+});
+</script>
+</body>
+</html>
