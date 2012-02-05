@@ -167,18 +167,36 @@ var RoundedContainerBlock = Y.Base.create("roundedContainerBlock", RoundedBasicB
     }
   }, RoundedBasicBlock.ATTRS)
 });
+
 /**
  * This is a prototype class for rendering a list of block commands.
  */
 var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [], {
   container : '<div class="blockList"></div>',
   
+  initializer : function() {
+  },
+  
   render : function() {
-    var blockList = this.get('blockList');
+    var blockList = this.get('blockList'),
+        blocks = blockList;
+    if (!Y.instanceOf(blockList, Y.ModelList)) {
+      blocks = blockList.get('blocks');
+      console.log(blocks.toArray());
+      blockList.detachAll('blocksChange');
+      blockList.after('blocksChange', this.render, this);
+      this.container.setStyle('left', blockList.get('x'));
+      this.container.setStyle('top', blockList.get('y'));
+      this.container.setStyle('position', 'absolute');
+    }
     if (!this.container.inDoc()) {
       this.get('parent').append(this.container);
     }
-    blockList.each(function(block) {
+    
+    // reset the contents of the block list
+    this.container.setContent('');
+    
+    blocks.each(function(block) {
       // Wrap the block wrapper
       var blockWrapper = Y.Node.create('<div class="blockWrapper"></div>'), 
           region,
@@ -186,7 +204,9 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
       this.container.append(blockWrapper);
       graphicsBlock = new Y.GraphicsBlockRender({
         block : block,
-        parent : blockWrapper
+        parent : blockWrapper,
+        parentBlockList : this.get('blockList'),
+        blockStageContainer : this.get('blockStageContainer')
       });
       graphicsBlock.render();
       region = graphicsBlock.container.get('region');
@@ -196,6 +216,9 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
   }
 }, {
   ATTRS : {
+    'blockStageContainer' : {
+      value : null
+    },
     'blockList' : {
       value : null
     },
@@ -213,6 +236,7 @@ Y.GraphicsBlockListRender = GraphicsBlockListRender;
 var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   container : '<div class="basicBlock"></div>',  
   blockBody : null,
+  _copyOnDrag : false,
   
   initializer : function() {
     
@@ -234,6 +258,13 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
         var id = Y.guid();
         idToBlockMap[id] = value;
         ctx[key] = '<div id="' + id + '" class="basicBlock inputParentBlock"></div>';
+      });
+      Y.each(block._defaultInputBlocks, function(value, key) {
+        if (!inputBlocks || !inputBlocks[key]) {
+          var id = Y.guid();
+          idToBlockMap[id] = value;
+          ctx[key] = '<div id="' + id + '" class="basicBlock inputParentBlock"></div>';
+        }
       });
       statement = block.statement;
     }    
@@ -286,8 +317,9 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     var region = container.get("region");
     var newBlock = new GraphicsBlockRender({
       block : block,
-      blockFillColor : block.type === 'constant' ? '#999999' : '#55BA00',
-      container : parent
+      blockFillColor : block.type === 'constant' ? '#999999' : '#55BA00', // TODO : remove
+      container : parent,
+      blockStageContainer : this.get('blockStageContainer')
     });
     newBlock.render();
   },
@@ -297,7 +329,8 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     if (block._innerBlocksAllowed) {
       var gbList = new GraphicsBlockListRender({
         parent : this.container,
-        blockList : innerBlocks
+        blockList : innerBlocks,
+        blockStageContainer : this.get('blockStageContainer')
       });
       gbList.render();
       // TODO:
@@ -313,11 +346,14 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   },
   
   render : function() {
-    var block = this.get('block'), container = this.container, basicBlock, region, width, height, bodyWidth, bodyHeight;
+    var block = this.get('block'), 
+        container = this.container,
+        parent = this.get('parent'),
+        basicBlock, region, width, height, bodyWidth, bodyHeight;
     
     // Make sure the container is in the document
-    if (!container.inDoc()) {
-      this.get('parent').append(this.container);
+    if (!container.inDoc() && parent) {
+      parent.append(this.container);
     }
     basicBlock = new Y.Graphic({render : container});    
     this._renderBody();
@@ -365,21 +401,158 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     }
     
 
+    this._plugDragDrop();
+  },
+  
+  _plugDragDrop : function() {
+    
+    if (this.container.dd) { 
+      this.container.dd.detatchAll('drag:start');
+      this.container.dd.detatchAll('drag:end');
+    }
+    
+    if (this.container.drop) {
+      this.container.drop.detatchAll('drop:enter');
+      this.container.drop.detatchAll('drop:exit');
+      this.container.drop.detatchAll('drop:hit');
+    }
+    
     this.container.plug(Y.Plugin.Drag, { dragMode: 'intersect' });
     this.container.plug(Y.Plugin.Drop);
-    this.container.dd.on('drag:start', this._bringToFront, this);
-    this.container.dd.on('drag:end', this._bringToBack, this);
+    this.container.dd.on('drag:start', this._bringToFront, null, this);
+    this.container.dd.on('drag:end', this._bringToBack, null, this);
+    this.container.drop.on('drop:enter', this._onDropEnter, null, this);
+    this.container.drop.on('drop:exit', this._onDropExit, null, this);
+    this.container.drop.on('drop:hit', this._onDropHit, null, this);
   },
   
-  _bringToFront : function(e) {
-    this.container.setStyle("zIndex", 1);
+  _onDropEnter : function(e, self) {
+    var drag = e.drag;
+    var block = self.get('block');
+    
+    if (block._bottomBlocksAllowed ||  block._topBlocksAllowed) {
+      drag.dstBlock = self.get('block');
+      drag.dstBlockList = self.get('parentBlockList');    
+    }
+
+    console.log(self.get('block').statement + ' drop enter');
   },
   
-  _bringToBack : function(e) {
-    this.container.setStyle("zIndex", 0);
+  _onDropExit : function(e, self) {
+    var drag = Y.DD.DDM.get('activeDrag');
+    if (drag && drag.dstBlock == self.get('block')) {
+      drag.dstBlock = null;
+      drag.dstBlockList = null;
+    }
+    console.log(self.get('block').statement + ' drop exit');
+  },
+  
+  _onDropHit : function(e, self) {
+    console.log('drop hit');
+    console.log(e);
+  },
+  
+  _bringToFront : function(e, self) {
+    var blockList = self.get('parentBlockList'),
+        drag = this,
+        splitBlockList, splitBlockListRender,
+        blockStageContainer = self.get('blockStageContainer'),
+        copiedBlock;
+    
+    //Stop the event
+    e.stopPropagation();
+      
+    self.container.setStyle("zIndex", 1);
+    
+    if (blockList && blockStageContainer) {
+      // Set the source block list on the drag instance
+      // drag.dstBlockList = blockList;
+      
+      // Get the block list that we're going to be dragging
+      splitBlockList = blockList.splitBlockList(self.get('block'));
+      
+      // Render the node on the stage
+      splitBlockListRender = new GraphicsBlockListRender({
+        parent : blockStageContainer,
+        blockStageContainer : blockStageContainer,
+        blockList : splitBlockList
+      });
+      
+      splitBlockListRender.render();
+      drag.blockList = splitBlockList;
+      self.setupModDD(splitBlockListRender.container, drag);      
+    }
+    
+    // If we're supposed to copy on drag, we need to 
+    if (self._copyOnDrag) {  
+      //Some private vars
+      copiedBlock = new GraphicsBlockRender({
+        parent : self.get('parent'),
+        block : self.get('block')
+      });
+      
+      // TODO: do this in a much clenaer way
+      copiedBlock.container = Y.Node.create(GraphicsBlockRender.prototype.container);
+      copiedBlock.render();
+      
+      // Set the block on the drag instance  TODO: is this the best way?
+      drag.block = copiedBlock.get('block').copy();
+      console.log('before: ' + drag.block.get('id'));
+      drag.block.set('id', Y.guid());
+      console.log('after: ' + drag.block.get('id'));
+      // TODO: This doesn't make sense right now, since I'm justing messing
+      // around, figure out the correct event structure
+      
+      // Setup the DD instance
+      self.setupModDD(copiedBlock.container, drag);
+
+      // Remove the listener TODO: I don't know if we need this
+      // this.detach('drag:start', this._bringToFront);
+    }
+    
+  },
+  
+  /**
+   * Helper method to setup the drag node.
+   */
+  setupModDD: function(mod, drag) {
+    drag.set('dragNode', mod);
+      //Add some styles to the proxy node.
+    drag.get('dragNode').setStyles({
+      opacity: '.5'
+    });
+    
+    //Remove the event's on the original drag instance
+    //dd.detachAll('drag:start');
+    //dd.detachAll('drag:end');
+    //dd.detachAll('drag:drophit');
+    
+    //It's a target
+    //dd.set('target', true);
+    //Setup the handles
+    //dd.addHandle('div.basicBlock');
+    //Remove the mouse listeners on this node
+    //dd._unprep();
+    //Update a new node
+    // dd.set('node', mod);
+    //Reset the mouse handlers
+    //dd._prep();
+        
+  },
+  
+  _bringToBack : function(e, self) {
+    self.container.setStyle("zIndex", 0);
   }
 }, {
   ATTRS : {
+    'parentBlockList' : {
+      value : null
+    },
+    
+    'blockStageContainer' : {
+      value : null
+    },
+    
     'block' : {
       value : null,
       writeOnce : true
@@ -395,6 +568,363 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
 
 Y.GraphicsBlockRender = GraphicsBlockRender;
 
+/*global Y*/
+
+/**
+ * Renders the scratch sprite.
+ */
+var ScratchSpriteRender = Y.Base.create("ScratchSpriteRender", Y.View, [], {
+  container : '<div class="sprite"></div>',
+  
+  initialize : function() {
+    // When the sprite's costume changes, change the rendered costume.
+    this.model.after('costumeChange', this.renderCostume, this);
+    this.model.after('xChange', this._shapeChange, this);
+    this.model.after('yChange', this._shapeChange, this);
+    this.model.after('sizeChange', this._shapeChange, this);
+  },
+  
+  _shapeChange : function(e) {
+    var container = this.container, 
+        model = this.model, 
+        size = model.get('size'), 
+        costume = model.get('costume');
+        
+    container.set('x', model.get('x'));
+    container.set('y', model.get('y'));
+    container.set('width', costume.get('width') * size);
+    container.set('height', costume.get('height') * size);
+  },
+  
+  render : function() {
+    var model = this.model;
+    this.renderCostume();
+  },
+  
+  renderCostume : function() {
+    var costume = this.model.get('costume'), type = costume.get('type');
+    switch (type) {
+      case 'rect':
+      case 'circle':
+        this._renderShape(costume);
+        break;
+      default:
+        break;
+    }
+  },
+  
+  _renderShape : function(costume) {
+    var style = costume.get('style'),
+        model = this.model,
+        graphics = this.graphics,
+        size = model.get('size');
+    this.container = graphics.addShape(Y.mix({ 
+      type : costume.get('type'),
+      x : model.get('x'),
+      y : model.get('y'),
+      width : costume.get('width') * size,
+      height : costume.get('height') * size
+    }, style));
+  }
+}, {
+  ATTRS : {
+    parent : {
+      value : null
+    },
+    graphics : {
+      value : null
+    }
+  }
+});
+
+Y.ScratchSpriteRender = ScratchSpriteRender;
+
+var ScratchStageRender = Y.Base.create("ScratchStageRender", Y.View, [], {
+  _spriteRenders : null,
+  
+  container : '<div class="scratchStageRender"></div>',
+  render : function() {
+    var container = this.container, sprites = this.get('sprites'), graphics = new Y.Graphics(container);
+    
+    container.width = this.get('width');
+    container.height = this.get('height');
+    
+    // Add each sprite in its appropriate spot
+    this._spriteRenders = sprites.map(function(sprite) {
+      var spriteRender = new ScratchSpriteRender({
+        parent : this.container,
+        model : sprite,
+        graphics : graphics
+      });
+      spriteRender.render();
+    }, this);
+  }
+},
+{
+  ATTRS: {
+    sprites : {
+      values : null
+    },
+    width : {
+      value : 600
+    },
+    height : {
+      value : 600
+    }
+  }
+});
+
+Y.ScratchStageRender = ScratchStageRender;
+/*global Y*/
+var BlocksTabPlugin = function(cfg) {
+  this.init(cfg);
+};
+
+BlocksTabPlugin.NS = 'scratch';
+
+BlocksTabPlugin.prototype = {
+  
+  init: function(cfg) {
+    if (cfg) {
+      this.tab = cfg.host;
+      this.category = cfg.category;
+    }
+    if (this.tab) {
+      this.tab.after('selectedChange', Y.bind(this.afterSelectedChange, this));
+    }
+  },
+  
+  loadBlocks: function(category) {
+    var blockPrototypes = Y.BlockDefinitionUtils.loadBlocksForCategory(category),
+        blockPrototypeContainer = Y.Node.create('<div class="blockPrototypeContainer"></div>');
+    
+    this.tab.set('content', blockPrototypeContainer);
+    
+    // HACK: The container element has to be in the DOM in order to correctly calculate height/width and
+    // correctly render the blocks.  For now, we're wrapping this in a fragile Y.later call so that it executes
+    // after the content has been set (listening to contentChange for some reason doesn't work). 
+    Y.later(0, this, function() {
+      Y.each(blockPrototypes, function(block) {
+        var blockPrototypeWrapper = Y.Node.create('<div class="blockPrototypeWrapper"></div>'),
+            blockInstance = new block(),
+            renderBlock;
+        
+        blockPrototypeContainer.append(blockPrototypeWrapper);
+        renderBlock = new Y.GraphicsBlockRender({
+          parent : blockPrototypeWrapper,
+          block : blockInstance
+        });
+        renderBlock._copyOnDrag = true;
+        renderBlock.render();
+      }, this);
+    });
+    
+  },
+  
+  afterSelectedChange: function(e) {
+    if (!this.loaded) {
+      this.loadBlocks(this.category);
+    }
+  }
+};
+
+var BlockSelectionView = Y.Base.create("blockCreationView", Y.View, [], {
+  render: function() {
+    // get all the children for the tabview
+    var tabView = new Y.TabView(),
+        categories = this._getAllCategories();
+    
+    // Create tabs for each category
+    Y.each(categories, function(category) {
+      var tab = new Y.Tab({
+        label: category,
+        content : ''
+      });
+      tab.plug(BlocksTabPlugin, {
+        category : category
+      });
+      tabView.add(tab);
+    });
+    
+    tabView.render(this.container);
+  },
+  
+  _getAllCategories: function() {
+    return Y.Object.keys(Y.SPRITE_BLOCK_DEFINITIONS);
+  }
+}, {
+  ATTRS : {
+    
+  }
+});
+
+var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
+  render : function() {
+    this.container.plug(Y.Plugin.Drop);
+    this.container.drop.on('drop:hit', this._onDropHit, null, this);
+    this.container.drop.on('drop:enter', this._onDropEnter, null, this);
+    this.container.drop.on('drop:exit', this._onDropExit, null, this);
+  },
+  
+  _onDropHit : function(e, self) {
+    // remove the drag instance and create it in the script view
+    // Find the region and add it to the script view
+    var dropNodeRegion = self.container.get('region'),
+        dragNodeRegion = e.drag.get('dragNode').get('region'),
+        srcBlock = e.drag.block,
+        srcBlockList = e.drag.blockList,
+        dstBlockList = e.drag.dstBlockList,
+        dstBlock = e.drag.dstBlock,
+        isTop = e.drag.isTop,
+        blockListContainer = Y.Node.create('<div class="blockListContainer"></div>'),
+        relX = Math.max(e.drag.region[0] - dropNodeRegion[0], 0),
+        relY = Math.max(e.drag.region[1] - dropNodeRegion[1], 0),
+        blockList,
+        blockListRender;
+    
+    if (srcBlock) {
+      blockList = new Y.BlockListModel({
+        x : relX,
+        y : relY
+      });
+      blockList.get('blocks').add(srcBlock);
+    }
+    else if (srcBlockList) {
+      blockList = srcBlockList;
+      blockList.set('x', relX);
+      blockList.set('y', relY);
+    }
+    
+    // Delete the node that we're dragging
+    e.drag.get('dragNode').remove();
+
+    // If we have a block list to add to, then use that
+    if (dstBlockList) {
+      self.addToBlockList(blockList, dstBlockList, dstBlock, isTop);
+    }
+    else {
+      blockListRender = new Y.GraphicsBlockListRender({
+        parent : self.container,
+        blockList : blockList,
+        blockStageContainer : self.container
+      });
+      blockListRender.render();
+    }
+    
+  },
+  
+  addToBlockList : function(blockList, dstBlockList, dstBlock, isTop) {
+    // In the destination block list, find the index of the destination block
+    var dstBlocks = dstBlockList.get('blocks'),
+        dstIndex = dstBlocks.indexOf(dstBlock);
+    
+    if (dstIndex === -1) {
+      isTop = true;
+      dstIndex = 0;
+    }
+    
+    var i, 
+        newBlocks = new Y.ModelList(),
+        inserted = false, shouldInsert = false,
+        addToNewBlocks = function() {
+          var blks = blockList.get('blocks');
+          newBlocks.add(blks.toArray());
+          inserted = true;
+        };
+    
+    for (i = 0; i < dstBlocks.size(); i += 1) {
+      shouldInsert = dstIndex === i;
+      if (isTop && shouldInsert) {
+        addToNewBlocks();
+      }
+      newBlocks.add(dstBlocks.item(i));
+      if (!isTop && shouldInsert) {
+        addToNewBlocks();
+      }
+    }
+    
+    if (!inserted) {
+      addToNewBlocks();
+    }
+    
+    dstBlockList.set('blocks', newBlocks);
+  },
+  
+  _onDropEnter : function(e, self) {
+  },
+  
+  _onDropExit : function(e, self) {
+  }
+}, {
+  ATTRS : {
+    
+  }
+});
+
+var SpriteStageView = Y.Base.create("spriteStageView", Y.View, [], {
+  
+}, {
+  ATTRS : {
+    
+  }
+});
+
+var SpriteListView = Y.Base.create("spriteListView", Y.View, [], {
+  
+}, {
+  ATTRS : {
+    
+  }
+});
 
 
-}, '@VERSION@' ,{use:['base','view','scratch-block-model','dd-plugin','dd-drop-plugin','graphics','substitute','escape']});
+var ScratchWorkstation = Y.Base.create("scratchWorkstation", Y.View, [], {
+  blockSelectionView : null,
+  spriteScriptView : null,
+  spriteListView : null,
+  spriteStageView : null,
+  
+  template : '<div class="scratchWorkstation yui3-g">' +
+              '  <div class="blockSelection yui3-u-1-3"></div>' +
+              '  <div class="spriteScript yui3-u-2-3"></div>' +
+              '  <div class="spriteStage"></div>' +
+              '  <div class="spriteList"></div>' +
+              '</div>',
+             
+  render : function() {
+    var container = this.container,
+        model = this.model, 
+        blockSelectionView, 
+        spriteScriptView, 
+        spriteStageView, 
+        spriteListView;
+    container.setContent(this.template);
+    
+    blockSelectionView = new BlockSelectionView({
+      container : container.one('.blockSelection'),
+      model : model
+    });
+    spriteScriptView = new SpriteScriptView({
+      container : container.one('.spriteScript'),
+      model : model
+    });
+    spriteStageView = new SpriteStageView({
+      container : container.one('.spriteStage'),
+      model : model
+    });
+    spriteListView = new SpriteListView({
+      container : container.one('.spriteList'),
+      model : model
+    });
+    
+    blockSelectionView.render();
+    spriteStageView.render();
+    spriteScriptView.render();
+    spriteListView.render();
+  }
+});
+
+Y.ScratchWorkstation = ScratchWorkstation;
+
+
+}, '@VERSION@' ,{use:['base','view','scratch-block-model','dd-plugin','dd-drop-plugin','graphics','substitute','escape','tabview']});

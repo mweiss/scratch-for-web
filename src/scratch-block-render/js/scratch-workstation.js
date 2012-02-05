@@ -114,6 +114,8 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
     }
     else if (srcBlockList) {
       blockList = srcBlockList;
+      blockList.set('x', relX);
+      blockList.set('y', relY);
     }
     
     // Delete the node that we're dragging
@@ -126,7 +128,8 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
     else {
       blockListRender = new Y.GraphicsBlockListRender({
         parent : self.container,
-        blockList : blockList
+        blockList : blockList,
+        blockStageContainer : self.container
       });
       blockListRender.render();
     }
@@ -206,8 +209,8 @@ var ScratchWorkstation = Y.Base.create("scratchWorkstation", Y.View, [], {
   
   template : '<div class="scratchWorkstation yui3-g">' +
               '  <div class="blockSelection yui3-u-1-3"></div>' +
-              '  <div class="spriteScript yui3-u-1-3"></div>' +
-              '  <div class="spriteStage yui3-u-1-3"></div>' +
+              '  <div class="spriteScript yui3-u-2-3"></div>' +
+              '  <div class="spriteStage"></div>' +
               '  <div class="spriteList"></div>' +
               '</div>',
              

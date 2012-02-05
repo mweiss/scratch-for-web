@@ -165,18 +165,36 @@ var RoundedContainerBlock = Y.Base.create("roundedContainerBlock", RoundedBasicB
     }
   }, RoundedBasicBlock.ATTRS)
 });
+
 /**
  * This is a prototype class for rendering a list of block commands.
  */
 var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [], {
   container : '<div class="blockList"></div>',
   
+  initializer : function() {
+  },
+  
   render : function() {
-    var blockList = this.get('blockList');
+    var blockList = this.get('blockList'),
+        blocks = blockList;
+    if (!Y.instanceOf(blockList, Y.ModelList)) {
+      blocks = blockList.get('blocks');
+      console.log(blocks.toArray());
+      blockList.detachAll('blocksChange');
+      blockList.after('blocksChange', this.render, this);
+      this.container.setStyle('left', blockList.get('x'));
+      this.container.setStyle('top', blockList.get('y'));
+      this.container.setStyle('position', 'absolute');
+    }
     if (!this.container.inDoc()) {
       this.get('parent').append(this.container);
     }
-    blockList.each(function(block) {
+    
+    // reset the contents of the block list
+    this.container.setContent('');
+    
+    blocks.each(function(block) {
       // Wrap the block wrapper
       var blockWrapper = Y.Node.create('<div class="blockWrapper"></div>'), 
           region,
@@ -184,7 +202,9 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
       this.container.append(blockWrapper);
       graphicsBlock = new Y.GraphicsBlockRender({
         block : block,
-        parent : blockWrapper
+        parent : blockWrapper,
+        parentBlockList : this.get('blockList'),
+        blockStageContainer : this.get('blockStageContainer')
       });
       graphicsBlock.render();
       region = graphicsBlock.container.get('region');
@@ -194,6 +214,9 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
   }
 }, {
   ATTRS : {
+    'blockStageContainer' : {
+      value : null
+    },
     'blockList' : {
       value : null
     },
@@ -211,6 +234,7 @@ Y.GraphicsBlockListRender = GraphicsBlockListRender;
 var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   container : '<div class="basicBlock"></div>',  
   blockBody : null,
+  _copyOnDrag : false,
   
   initializer : function() {
     
@@ -232,6 +256,13 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
         var id = Y.guid();
         idToBlockMap[id] = value;
         ctx[key] = '<div id="' + id + '" class="basicBlock inputParentBlock"></div>';
+      });
+      Y.each(block._defaultInputBlocks, function(value, key) {
+        if (!inputBlocks || !inputBlocks[key]) {
+          var id = Y.guid();
+          idToBlockMap[id] = value;
+          ctx[key] = '<div id="' + id + '" class="basicBlock inputParentBlock"></div>';
+        }
       });
       statement = block.statement;
     }    
@@ -285,7 +316,8 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     var newBlock = new GraphicsBlockRender({
       block : block,
       blockFillColor : block.type === 'constant' ? '#999999' : '#55BA00', // TODO : remove
-      container : parent
+      container : parent,
+      blockStageContainer : this.get('blockStageContainer')
     });
     newBlock.render();
   },
@@ -295,7 +327,8 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     if (block._innerBlocksAllowed) {
       var gbList = new GraphicsBlockListRender({
         parent : this.container,
-        blockList : innerBlocks
+        blockList : innerBlocks,
+        blockStageContainer : this.get('blockStageContainer')
       });
       gbList.render();
       // TODO:
@@ -311,11 +344,14 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   },
   
   render : function() {
-    var block = this.get('block'), container = this.container, basicBlock, region, width, height, bodyWidth, bodyHeight;
+    var block = this.get('block'), 
+        container = this.container,
+        parent = this.get('parent'),
+        basicBlock, region, width, height, bodyWidth, bodyHeight;
     
     // Make sure the container is in the document
-    if (!container.inDoc()) {
-      this.get('parent').append(this.container);
+    if (!container.inDoc() && parent) {
+      parent.append(this.container);
     }
     basicBlock = new Y.Graphic({render : container});    
     this._renderBody();
@@ -363,21 +399,158 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     }
     
 
+    this._plugDragDrop();
+  },
+  
+  _plugDragDrop : function() {
+    
+    if (this.container.dd) { 
+      this.container.dd.detatchAll('drag:start');
+      this.container.dd.detatchAll('drag:end');
+    }
+    
+    if (this.container.drop) {
+      this.container.drop.detatchAll('drop:enter');
+      this.container.drop.detatchAll('drop:exit');
+      this.container.drop.detatchAll('drop:hit');
+    }
+    
     this.container.plug(Y.Plugin.Drag, { dragMode: 'intersect' });
     this.container.plug(Y.Plugin.Drop);
-    this.container.dd.on('drag:start', this._bringToFront, this);
-    this.container.dd.on('drag:end', this._bringToBack, this);
+    this.container.dd.on('drag:start', this._bringToFront, null, this);
+    this.container.dd.on('drag:end', this._bringToBack, null, this);
+    this.container.drop.on('drop:enter', this._onDropEnter, null, this);
+    this.container.drop.on('drop:exit', this._onDropExit, null, this);
+    this.container.drop.on('drop:hit', this._onDropHit, null, this);
   },
   
-  _bringToFront : function(e) {
-    this.container.setStyle("zIndex", 1);
+  _onDropEnter : function(e, self) {
+    var drag = e.drag;
+    var block = self.get('block');
+    
+    if (block._bottomBlocksAllowed ||  block._topBlocksAllowed) {
+      drag.dstBlock = self.get('block');
+      drag.dstBlockList = self.get('parentBlockList');    
+    }
+
+    console.log(self.get('block').statement + ' drop enter');
   },
   
-  _bringToBack : function(e) {
-    this.container.setStyle("zIndex", 0);
+  _onDropExit : function(e, self) {
+    var drag = Y.DD.DDM.get('activeDrag');
+    if (drag && drag.dstBlock == self.get('block')) {
+      drag.dstBlock = null;
+      drag.dstBlockList = null;
+    }
+    console.log(self.get('block').statement + ' drop exit');
+  },
+  
+  _onDropHit : function(e, self) {
+    console.log('drop hit');
+    console.log(e);
+  },
+  
+  _bringToFront : function(e, self) {
+    var blockList = self.get('parentBlockList'),
+        drag = this,
+        splitBlockList, splitBlockListRender,
+        blockStageContainer = self.get('blockStageContainer'),
+        copiedBlock;
+    
+    //Stop the event
+    e.stopPropagation();
+      
+    self.container.setStyle("zIndex", 1);
+    
+    if (blockList && blockStageContainer) {
+      // Set the source block list on the drag instance
+      // drag.dstBlockList = blockList;
+      
+      // Get the block list that we're going to be dragging
+      splitBlockList = blockList.splitBlockList(self.get('block'));
+      
+      // Render the node on the stage
+      splitBlockListRender = new GraphicsBlockListRender({
+        parent : blockStageContainer,
+        blockStageContainer : blockStageContainer,
+        blockList : splitBlockList
+      });
+      
+      splitBlockListRender.render();
+      drag.blockList = splitBlockList;
+      self.setupModDD(splitBlockListRender.container, drag);      
+    }
+    
+    // If we're supposed to copy on drag, we need to 
+    if (self._copyOnDrag) {  
+      //Some private vars
+      copiedBlock = new GraphicsBlockRender({
+        parent : self.get('parent'),
+        block : self.get('block')
+      });
+      
+      // TODO: do this in a much clenaer way
+      copiedBlock.container = Y.Node.create(GraphicsBlockRender.prototype.container);
+      copiedBlock.render();
+      
+      // Set the block on the drag instance  TODO: is this the best way?
+      drag.block = copiedBlock.get('block').copy();
+      console.log('before: ' + drag.block.get('id'));
+      drag.block.set('id', Y.guid());
+      console.log('after: ' + drag.block.get('id'));
+      // TODO: This doesn't make sense right now, since I'm justing messing
+      // around, figure out the correct event structure
+      
+      // Setup the DD instance
+      self.setupModDD(copiedBlock.container, drag);
+
+      // Remove the listener TODO: I don't know if we need this
+      // this.detach('drag:start', this._bringToFront);
+    }
+    
+  },
+  
+  /**
+   * Helper method to setup the drag node.
+   */
+  setupModDD: function(mod, drag) {
+    drag.set('dragNode', mod);
+      //Add some styles to the proxy node.
+    drag.get('dragNode').setStyles({
+      opacity: '.5'
+    });
+    
+    //Remove the event's on the original drag instance
+    //dd.detachAll('drag:start');
+    //dd.detachAll('drag:end');
+    //dd.detachAll('drag:drophit');
+    
+    //It's a target
+    //dd.set('target', true);
+    //Setup the handles
+    //dd.addHandle('div.basicBlock');
+    //Remove the mouse listeners on this node
+    //dd._unprep();
+    //Update a new node
+    // dd.set('node', mod);
+    //Reset the mouse handlers
+    //dd._prep();
+        
+  },
+  
+  _bringToBack : function(e, self) {
+    self.container.setStyle("zIndex", 0);
   }
 }, {
   ATTRS : {
+    'parentBlockList' : {
+      value : null
+    },
+    
+    'blockStageContainer' : {
+      value : null
+    },
+    
     'block' : {
       value : null,
       writeOnce : true
