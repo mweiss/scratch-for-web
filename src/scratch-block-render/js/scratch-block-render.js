@@ -4,6 +4,8 @@
  * @module scratch-block-render
  */
 
+var DEFAULT_BLOCK_COLOR = '#3851d2';
+
 var RoundedBasicBlock = Y.Base.create("roundedBasicBlock", Y.Shape, [],{
   
   _draw: function() {
@@ -173,20 +175,28 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
   container : '<div class="blockList"></div>',
   
   initializer : function() {
+    var blockList = this.get('blockList');
+    if (blockList) {
+      blockList.after("render", this.render, this);
+    }
   },
-  
+
   render : function() {
     var blockList = this.get('blockList'),
-        blocks = blockList;
-    if (!Y.instanceOf(blockList, Y.ModelList)) {
-      blocks = blockList.get('blocks');
-      console.log(blocks.toArray());
-      blockList.detachAll('blocksChange');
-      blockList.after('blocksChange', this.render, this);
+        blocks = blockList,
+        isInline = blockList.isInline();
+    
+    blocks = blockList.get('blocks');
+    blockList.detachAll('blocksChange');
+    blockList.after('blocksChange', blockList.handleRender);
+    
+    if (!isInline) {
       this.container.setStyle('left', blockList.get('x'));
       this.container.setStyle('top', blockList.get('y'));
       this.container.setStyle('position', 'absolute');
     }
+
+    
     if (!this.container.inDoc()) {
       this.get('parent').append(this.container);
     }
@@ -211,6 +221,11 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
       blockWrapper.setStyle('width', region.width);
       blockWrapper.setStyle('height', region.height);
     }, this);
+    
+    // Default the height if ther are no blocks in the block list and we're an inline block
+    if (blocks.size() === 0 && isInline) {
+      this.container.setStyle('height', '15px');
+    }
   }
 }, {
   ATTRS : {
@@ -237,7 +252,21 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   _copyOnDrag : false,
   
   initializer : function() {
+    var block = this.get('block'), color = '#55BA00';
     
+    if (block) {
+      switch (block._category) {
+        case 'motion':
+          color = DEFAULT_BLOCK_COLOR;
+          break;
+        case 'control':
+          color = '#d89d00';
+          break;
+      }
+      block.after("render", this.render, this);
+    }
+    
+    this.set('blockFillColor', color);
   },
   
   _renderBody : function() {
@@ -315,7 +344,6 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     var region = container.get("region");
     var newBlock = new GraphicsBlockRender({
       block : block,
-      blockFillColor : block.type === 'constant' ? '#999999' : '#55BA00', // TODO : remove
       container : parent,
       blockStageContainer : this.get('blockStageContainer')
     });
@@ -325,12 +353,32 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   _renderInnerBlock : function(bodyHeight) {
     var block = this.get('block'), innerBlocks = block.get('innerBlocks');
     if (block._innerBlocksAllowed) {
+      
+      // Default the inner block if none is specified
+      // TODO: move this logic to the model
+      if (!innerBlocks) {
+        innerBlocks = new Y.BlockListModel({
+          parent : block
+        });
+        block.set('innerBlocks', innerBlocks);
+      }
+      else {
+        innerBlocks.set('parent', block);
+      }
       var gbList = new GraphicsBlockListRender({
         parent : this.container,
         blockList : innerBlocks,
         blockStageContainer : this.get('blockStageContainer')
       });
       gbList.render();
+      
+      // Handle the case 
+      if (innerBlocks.get('blocks').size() === 0 && !this._copyOnDrag) {
+        gbList.container.plug(Y.Plugin.Drop);
+        gbList.container.drop.on('drop:enter', this._handleEmptyInnerEnter, null, this);
+        gbList.container.drop.on('drop:exit', this._handleEmptyInnerExit, null, this);
+      }
+      
       // TODO:
       // Indent as far as the width of the left bar, for now we'll say it's 15, but
       // we need to get this property dynamically
@@ -343,12 +391,28 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     }
   },
   
+  _handleEmptyInnerEnter : function(e, self) {
+    var drag = e.drag;
+    var block = self.get('block');
+    if (drag) {
+      drag.innerBlockList = block.get('innerBlocks');
+    }
+  },
+  
+  _handleEmptyInnerExit : function(e, self) {
+    var drag = Y.DD.DDM.get('activeDrag');
+    if (drag && drag.innerBlockList && drag.innerBlockList.get('blocks').size() === 0) {
+      drag.innerBlockList = null;
+    }
+  },
+  
   render : function() {
     var block = this.get('block'), 
         container = this.container,
         parent = this.get('parent'),
         basicBlock, region, width, height, bodyWidth, bodyHeight;
     
+    this.container.setContent('');
     // Make sure the container is in the document
     if (!container.inDoc() && parent) {
       parent.append(this.container);
@@ -379,6 +443,9 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
         showHeader : block._topBlocksAllowed,
         showFooter : block._bottomBlocksAllowed
       });
+      // force the height of the container to match the new calculated height
+      // TODO: this is another case where I'm hardcoding the height of the tab
+      container.setStyle('height', height + 5);
     }
     else {
       basicBlock.addShape({
@@ -404,24 +471,13 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
   
   _plugDragDrop : function() {
     
-    if (this.container.dd) { 
-      this.container.dd.detatchAll('drag:start');
-      this.container.dd.detatchAll('drag:end');
-    }
-    
-    if (this.container.drop) {
-      this.container.drop.detatchAll('drop:enter');
-      this.container.drop.detatchAll('drop:exit');
-      this.container.drop.detatchAll('drop:hit');
-    }
-    
     this.container.plug(Y.Plugin.Drag, { dragMode: 'intersect' });
     this.container.plug(Y.Plugin.Drop);
+
     this.container.dd.on('drag:start', this._bringToFront, null, this);
     this.container.dd.on('drag:end', this._bringToBack, null, this);
     this.container.drop.on('drop:enter', this._onDropEnter, null, this);
     this.container.drop.on('drop:exit', this._onDropExit, null, this);
-    this.container.drop.on('drop:hit', this._onDropHit, null, this);
   },
   
   _onDropEnter : function(e, self) {
@@ -432,8 +488,6 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       drag.dstBlock = self.get('block');
       drag.dstBlockList = self.get('parentBlockList');    
     }
-
-    console.log(self.get('block').statement + ' drop enter');
   },
   
   _onDropExit : function(e, self) {
@@ -442,12 +496,6 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       drag.dstBlock = null;
       drag.dstBlockList = null;
     }
-    console.log(self.get('block').statement + ' drop exit');
-  },
-  
-  _onDropHit : function(e, self) {
-    console.log('drop hit');
-    console.log(e);
   },
   
   _bringToFront : function(e, self) {
@@ -487,17 +535,12 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       copiedBlock = new GraphicsBlockRender({
         parent : self.get('parent'),
         block : self.get('block')
-      });
-      
-      // TODO: do this in a much clenaer way
-      copiedBlock.container = Y.Node.create(GraphicsBlockRender.prototype.container);
+      });      
       copiedBlock.render();
       
       // Set the block on the drag instance  TODO: is this the best way?
       drag.block = copiedBlock.get('block').copy();
-      console.log('before: ' + drag.block.get('id'));
-      drag.block.set('id', Y.guid());
-      console.log('after: ' + drag.block.get('id'));
+      
       // TODO: This doesn't make sense right now, since I'm justing messing
       // around, figure out the correct event structure
       

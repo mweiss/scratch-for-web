@@ -3,6 +3,11 @@ var BLOCK_TYPES = {
   simpleBlock: {
     _topBlocksAllowed: true,
     _bottomBlocksAllowed: true
+  },
+  controlBlock : {
+    _topBlocksAllowed: true,
+    _bottomBlocksAllowed: true,
+    _innerBlocksAllowed: true
   }
 };
 
@@ -62,6 +67,15 @@ var SPRITE_BLOCK_DEFINITIONS = {
       }
     }
     
+  ],
+  control : [
+    {
+      statement : "while {expression}",
+      blockType : "controlBlock",
+      defaultInput : {
+        expression : 'blank'
+      }
+    }
   ]
 };
 

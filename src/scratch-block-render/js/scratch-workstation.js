@@ -95,6 +95,7 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
     var dropNodeRegion = self.container.get('region'),
         dragNodeRegion = e.drag.get('dragNode').get('region'),
         srcBlock = e.drag.block,
+        innerBlockList = e.drag.innerBlockList,
         srcBlockList = e.drag.blockList,
         dstBlockList = e.drag.dstBlockList,
         dstBlock = e.drag.dstBlock,
@@ -105,11 +106,15 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
         blockList,
         blockListRender;
     
+    if (innerBlockList) {
+      dstBlockList = innerBlockList;
+    }
     if (srcBlock) {
       blockList = new Y.BlockListModel({
         x : relX,
         y : relY
       });
+      srcBlock.set('parent', blockList);
       blockList.get('blocks').add(srcBlock);
     }
     else if (srcBlockList) {
@@ -151,7 +156,10 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
         inserted = false, shouldInsert = false,
         addToNewBlocks = function() {
           var blks = blockList.get('blocks');
-          newBlocks.add(blks.toArray());
+          blks.each(function(blk) {
+            blk.set('parent', dstBlockList);
+            newBlocks.add(blk);
+          });
           inserted = true;
         };
     

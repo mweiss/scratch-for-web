@@ -21,34 +21,49 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
   _category : null,
   _defaultInputBlocks : {},
   
-  copy : function() {
+  /**
+   * TODO: does this really make sense, render should be the change event, but need to see reprocusions of that.
+   */
+  handleRender : function() {
+    var parent = this.get('parent');
+    if (parent) {
+      parent.handleRender();
+    }
+    else {
+      this.fire('render');
+    }
+  },
+  
+  copy : function(parent) {
     
     // TODO: This method shouldn't be necessary
-    var innerBlocks = this.get('innerBlocks'),
+    var innerBlocks = this.get('innerBlocks'), newInnerBlocks,
         statement = this.get('statement'),
-        inputBlocks = this.get('inputBlocks');
-        
+        inputBlocks = this.get('inputBlocks'), newInputBlocks;
       
     if (innerBlocks) {
-      innerBlocks = new Y.ModelList();
-      innerBlocks.add(
-        innerBlocks.map(function(value) {
-          return value.copy();
+      newInnerBlocks = new Y.BlockListModel({
+        parent : this
+      });
+      newInnerBlocks.get('blocks').add(
+        innerBlocks.get('blocks').map(function(value) {
+          return value.copy(newInnerBlocks);
         }));
     }
     
     if (inputBlocks) {
-      inputBlocks = new Y.ModelList();
-      inputBlocks.add(
+      newInputBlocks = new Y.ModelList();
+      newInputBlocks.add(
         inputBlocks.map(function(value) {
-          return value.copy();
+          return value.copy(newInputBlocks);
         }));
     }
 
     var copy = new BaseBlockModel({
-      innerBlocks : innerBlocks,
+      innerBlocks : newInnerBlocks,
       statement : statement,
-      inputBlocks : inputBlocks
+      inputBlocks : newInputBlocks,
+      parent : parent
     });
     
     copy._innerBlocksAllowed = this._innerBlocksAllowed;
@@ -98,6 +113,12 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
     });
   },
   
+  createDefaultEmptyInput : function(value) {
+    return new BaseBlockModel({
+      type : value
+    });
+  },
+  
   initializeDefaultBlocks : function() {
     var initializedInputBlocks = {};
     Y.each(this._defaultInputBlocks, function(value, key) {
@@ -137,6 +158,19 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
 	//CSS_PREFIX: "scratch-block-model",
 
 	ATTRS: {
+	  /**
+	   * The parent block or block list.
+	   */
+	  parent : {
+	    value : null,
+	    setter : function(value) {
+        if (value === null) {
+          console.log(this.statement);
+        }
+        return value;
+      }
+	  },
+	  
     innerBlocks : {
       value : null
     },
@@ -174,6 +208,20 @@ var ProgramModel = Y.Base.create('programModel', Y.Model, [], {
 var BlockListModel = Y.Base.create('blockListModel', Y.Model, [], {
   
   /**
+   * TODO: Duplicate code with BaseBlockModel
+   * TODO: does this really make sense, render should be the change event, but need to see reprocusions of that.
+   */
+  handleRender : function() {
+    var parent = this.get('parent');
+    if (parent) {
+      parent.handleRender();
+    }
+    else {
+      this.fire('render');
+    }
+  },
+  
+  /**
    * Helper method which removes the blocks from this block to the end of the model list and
    * replaces the blocks model list.
    */
@@ -205,9 +253,19 @@ var BlockListModel = Y.Base.create('blockListModel', Y.Model, [], {
       });
     }
     return splitBlockList;
+  },
+  
+  isInline : function() {
+    return this.get('parent') !== null;
   }
 }, {
   ATTRS : {
+    /**
+     * The parent block model that contains this block list.
+     */
+    parent : {
+      value : null
+    },
     /**
      * The x coordinate of this block list.
      */
@@ -449,6 +507,11 @@ var BLOCK_TYPES = {
   simpleBlock: {
     _topBlocksAllowed: true,
     _bottomBlocksAllowed: true
+  },
+  controlBlock : {
+    _topBlocksAllowed: true,
+    _bottomBlocksAllowed: true,
+    _innerBlocksAllowed: true
   }
 };
 
@@ -508,6 +571,15 @@ var SPRITE_BLOCK_DEFINITIONS = {
       }
     }
     
+  ],
+  control : [
+    {
+      statement : "while {expression}",
+      blockType : "controlBlock",
+      defaultInput : {
+        expression : 'blank'
+      }
+    }
   ]
 };
 
