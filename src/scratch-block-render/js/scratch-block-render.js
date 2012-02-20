@@ -18,10 +18,37 @@ var IgnoreOffsetDrop = function(config) {
 
 Y.extend(IgnoreOffsetDrop, Y.Plugin.Drop, {
   
-  initializer : function() {
+  initDropAndRegion : function() {
     Y.DD.DDM._addValid(this);
     this.region = this.get('node').get('region');
     Y.DD.DDM.useHash = false;
+  },
+  
+  /**
+   * Overrides the destroy method to unregester this drop and to remove it from the
+   * other drops property on the drag and drop manager.
+   */
+  destroy : function() {
+    Y.DD.DDM._unregTarget(this);
+    Y.each(Y.DD.DDM.otherDrops, function(value, key) {
+      if (value === this) {
+        delete Y.DD.DDM.otherDrops[key];
+      }
+    }, this);
+    IgnoreOffsetDrop.superclass.destroy.call(this);
+  },
+  
+  initializer : function() {
+    // If this is not a regular block, we need to wait until everything renders before 
+    // initializing.  For now, we'll just set an artificial timeout.
+    if (!this.block) {
+      Y.later(0, this, function() {
+        this.initDropAndRegion();
+      });      
+    }
+    else {
+      this.initDropAndRegion();
+    }
   },
   
   /**
@@ -277,7 +304,6 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
   },
 
   destroy: function() {
-    console.log('destroying: ' + this.container._yuid);
     this._clearContents();
     GraphicsBlockListRender.superclass.destroy.call(this);
     this.container.remove();
@@ -292,7 +318,6 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
         blocks = blockList.get('blocks'),
         isInline = blockList.isInline();
     
-    console.log('rendering: ' + this.container._yuid + ' with block list ' + blockList._yuid);
     // Set this block list's position on the stage if it's not part of another block.
     if (!isInline) {
       this.container.setStyle('left', blockList.get('x'));
@@ -339,6 +364,10 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
    * Clears the contents of the block list and destroys the current blocks in the block render.
    */
   _clearContents : function() {
+
+    if (this.container.drop) {
+      this.container.drop.destroy();
+    }
     if (this._currentBlockRenders) {
       Y.Array.each(this._currentBlockRenders, function(blockRender) {
         if (blockRender.container.drop) {
@@ -346,6 +375,9 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
         }
         if (blockRender.container.dd) {
           blockRender.container.dd.destroy();
+        }
+        if (blockRender.innerBlockRender) {
+          blockRender.innerBlockRender.destroy();
         }
         blockRender.container.remove();
       });
@@ -390,7 +422,8 @@ Y.GraphicsBlockListRender = GraphicsBlockListRender;
  * This is a prototype class for using YUI graphics to render a scratch block.
  */
 var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
-  container : '<div class="basicBlock"></div>',  
+  container : '<div class="basicBlock"></div>', 
+  innerBlockRender : null,
   blockBody : null,
   _copyOnDrag : false,
   
@@ -425,13 +458,16 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       partition.setStyle("height", "15px");
       partition.setStyle("opacity", 0.5);
       partition.setStyle("backgroundColor", "#000");
-      
+      partition.setStyle("position", "absolute");
+      partition.setStyle("zIndex", 999);
       var region = this.container.get('region');
       
+      if ((region.width === 0 && region.height === 0) && this.container.drop && this.container.drop.region) {
+        region = this.container.drop.region;
+      }
       // Add the child to the document
       Y.one("body").appendChild(partition);
-      partition.setX(region.left);
-      partition.setY(hoverStatus === 'top' ? region.top - 15 : region.bottom);
+      partition.setXY([region.left, hoverStatus === 'top' ? region.top : region.bottom]);
       
       this.hover = partition;
     }
@@ -551,7 +587,7 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       
       // Handle the case when the number of inner blocks is zero, so we need to listen to drop
       // events directly on the block list
-      if (innerBlocks.get('blocks').size() === 0 && !this._copyOnDrag) {
+      if (innerBlocks.get('blocks').size() === 0 && !this._copyOnDrag && this.get('plugDragDrop')) {
         gbList.container.plug(IgnoreOffsetDrop);
         gbList.container.drop.on('drop:enter', this._onDropEnter, this, innerBlocks, gbList);
         gbList.container.drop.on('drop:exit', this._onDropExit, this, innerBlocks, gbList);
@@ -566,6 +602,8 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       var paddingTop = parseInt(this.container.getStyle('paddingTop').split("px")[0], 10);
       gbList.container.setStyle('marginLeft', 15 - paddingLeft);   
       gbList.container.setStyle('marginTop', bodyHeight - paddingTop);
+      
+      this.innerBlockRender = gbList;
     }
   },
   
@@ -655,6 +693,7 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
 
   _updateDropStack : function(drag, dropTargetModel, dropTargetRender, isTop) {
     var dropStack = drag.dropStack,
+        objIndex,
         dropStackObj = Y.Array.find(dropStack, function(v) {
       return v.target === dropTargetModel;
     });
@@ -666,7 +705,13 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       };
       dropStack.push(dropStackObj);
     }
-    
+    else {
+      objIndex = Y.Array.indexOf(dropStackObj);
+      if (objIndex !== -1) {
+        dropStack[objIndex] = dropStack[dropStack.length - 1];
+        dropStack[dropStack.length - 1] = dropStackObj;
+      }
+    }
     dropStackObj.isTop = isTop;
     
     // If the current drop stack object is the active drop element, update the hover status

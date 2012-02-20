@@ -136,7 +136,7 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
     else {
       srcBlockList = new Y.BlockListModel();
       srcBlockList.set('blocks', dragTarget.get('blocks'));
-      dragTarget.destroy();
+      dragTarget.destroy()
     }
     
     // Delete the node that we're dragging
@@ -155,9 +155,7 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
         blockStageContainer : self.container
       });
       blockListRender.render();
-    }
-    console.log('drop finish');
-    
+    }    
   },
   
   addToBlockList : function(blockList, dstBlockList, dstBlock, isTop) {

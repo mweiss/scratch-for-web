@@ -22,7 +22,7 @@ BaseRenderableModel = Y.Base.create("baseRenderableModel", Y.Model, [], {
   },
   
   getHoverStatus : function(isTop) {
-    return 'bottom';
+    return 'top';
   },
   
   /**
