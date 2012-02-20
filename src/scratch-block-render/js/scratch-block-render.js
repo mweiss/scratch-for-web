@@ -1,25 +1,76 @@
 /*global Y console*/
 /**
- * FIXME: Enter a description for the scratch-block-render module
+ * This module contains the code to render blocks and block lists.
+ * 
  * @module scratch-block-render
  */
 
 var DEFAULT_BLOCK_COLOR = '#3851d2';
 
+/**
+ * Custom drop plugin which ignores offset width and offset height when determining the drop target region.
+ */
+var IgnoreOffsetDrop = function(config) {
+  config.node = config.host;
+  this.block = config.block;
+  IgnoreOffsetDrop.superclass.constructor.apply(this, arguments);
+};
+
+Y.extend(IgnoreOffsetDrop, Y.Plugin.Drop, {
+  
+  initializer : function() {
+    Y.DD.DDM._addValid(this);
+    this.region = this.get('node').get('region');
+    Y.DD.DDM.useHash = false;
+  },
+  
+  /**
+   * Overrides the size shim method so that we only use the node's region, and not the offset width or padding
+   * of the node.
+   */
+  sizeShim : function() {
+    if (!Y.DD.DDM.activeDrag) {
+      return false; //Nothing is dragging, no reason to activate.
+    }
+    if (this.get('node') === Y.DD.DDM.activeDrag.get('node')) {
+      return false;
+    }
+    if (this.get('lock')) {
+      return false;
+    }
+    if (!this.shim) {
+      Y.later(100, this, this.sizeShim);
+      return false;
+    }
+    this.region = this.get('node').get('region');
+  }
+}, {
+  NAME : "ignore-offset-drop-plugin",
+  NS : "drop"
+});
+
+
+/**
+ * A shape that represents a rounded basic block.  The top and bottom connectors can be modified
+ * by setting the showBottomConnector and showTopConnector properties.
+ */
 var RoundedBasicBlock = Y.Base.create("roundedBasicBlock", Y.Shape, [],{
   
+  /**
+   * Draws the rounded basic block.
+   */
   _draw: function() {
     var w = this.get("width"),
         h = this.get("height"),
         ew = this.get("ellipseWidth"),
         eh = this.get("ellipseHeight"),
-        showFooter = this.get("showFooter"),
-        showHeader = this.get("showHeader"),
+        showBottomConnector = this.get("showBottomConnector"),
+        showTopConnector = this.get("showTopConnector"),
         connectorIndent = this.get("connectorIndent"),
         connectorWidth = this.get("connectorWidth");
     this.clear();
     this.moveTo(0, eh);
-    if (showFooter) { 
+    if (showBottomConnector) { 
       this.lineTo(0, h - 2 * eh);
       this.quadraticCurveTo(0, h - eh, ew, h - eh);
       this.lineTo(connectorIndent, h - eh);
@@ -38,7 +89,7 @@ var RoundedBasicBlock = Y.Base.create("roundedBasicBlock", Y.Shape, [],{
     
     this.lineTo(w, eh);
     this.quadraticCurveTo(w, 0, w - ew, 0);
-    if (showHeader) {
+    if (showTopConnector) {
       this.lineTo(connectorIndent + connectorWidth, 0);
       this.quadraticCurveTo(connectorIndent + connectorWidth, eh, connectorIndent + connectorWidth - ew, eh);
       this.lineTo(connectorIndent + ew, eh);
@@ -51,36 +102,60 @@ var RoundedBasicBlock = Y.Base.create("roundedBasicBlock", Y.Shape, [],{
 }, {
   NAME: "roundedBasicBlock",
   ATTRS: Y.mix({
-    showHeader : {
+    /**
+     * If true, we show the top connector.
+     */
+    showTopConnector : {
       value : true
     },
-    showFooter : {
+    /**
+     * If true, we show the bottom connector.
+     */
+    showBottomConnector : {
       value : true
     },
+    /**
+     * The elipse width of the block.
+     */
     ellipseWidth: {
       value: 5
     },
+    /**
+     * The elipse height of the block.
+     */
     ellipseHeight: {
       value: 5
     },
+    /**
+     * The ident of the top and bottom connector.
+     */
     connectorIndent: {
       value : 15
     },
+    /**
+     * The width of the connector.
+     */
     connectorWidth: {
       value : 20
     }
   }, Y.Shape.ATTRS)
 });
 
-
+/**
+ * A shape that represents a control block.  This block has a space in the middle to contain inner blocks.
+ */
 var RoundedContainerBlock = Y.Base.create("roundedContainerBlock", RoundedBasicBlock, [], {
+  
+  /**
+   * Draws the rounded container block.
+   */
   _draw : function() {
     var w = this.get("width"),
         h = this.get("height"),
         ew = this.get("ellipseWidth"),
         eh = this.get("ellipseHeight"),
-        showFooter = this.get("showFooter"),
-        showHeader = this.get("showHeader"),
+        showBottomConnector = this.get("showBottomConnector"),
+        showTopConnector = this.get("showTopConnector"),
         connectorIndent = this.get("connectorIndent"),
         connectorWidth = this.get("connectorWidth"),
         bodyHeight = this.get("bodyHeight"),
@@ -91,7 +166,7 @@ var RoundedContainerBlock = Y.Base.create("roundedContainerBlock", RoundedBasicB
     this.moveTo(0, eh);
     
     // Bottom of the footer    
-    if (showFooter) { 
+    if (showBottomConnector) { 
       this.lineTo(0, h - 2 * eh);
       this.quadraticCurveTo(0, h - eh, ew, h - eh);
       this.lineTo(connectorIndent, h - eh);
@@ -143,7 +218,7 @@ var RoundedContainerBlock = Y.Base.create("roundedContainerBlock", RoundedBasicB
     
     // Top of the header
     this.quadraticCurveTo(w, 0, w - ew, 0);
-    if (showHeader) {
+    if (showTopConnector) {
       this.lineTo(connectorIndent + connectorWidth, 0);
       this.quadraticCurveTo(connectorIndent + connectorWidth, eh, connectorIndent + connectorWidth - ew, eh);
       this.lineTo(connectorIndent + ew, eh);
@@ -156,12 +231,21 @@ var RoundedContainerBlock = Y.Base.create("roundedContainerBlock", RoundedBasicB
 }, {
   NAME: "roundedContainerBlock",
   ATTRS: Y.mix({
+    /**
+     * The default height of the inner section of the container.
+     */
     bodyHeight : {
       value : 15
     },
+    /**
+     * The additional offset to add to the inner section for connectors.
+     */
     leftConnectorWidth : {
       value : 15
     },
+    /**
+     * The height of the footer part of the connector.
+     */
     footerHeight : {
       value : 25
     }
@@ -169,41 +253,62 @@ var RoundedContainerBlock = Y.Base.create("roundedContainerBlock", RoundedBasicB
 });
 
 /**
- * This is a prototype class for rendering a list of block commands.
+ * A view which renders a block list to the block stage.
  */
 var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [], {
+  
+  _currentBlockRenders : null,
+  
+  /**
+   * Container element for a graphics block list.
+   */
   container : '<div class="blockList"></div>',
   
+  hover : null,
+  /**
+   * Initializes the block list by adding an event handler to this block list's rendering event.
+   */
   initializer : function() {
     var blockList = this.get('blockList');
     if (blockList) {
       blockList.after("render", this.render, this);
+      blockList.after("destroy", this.destroy, this);
     }
   },
 
+  destroy: function() {
+    console.log('destroying: ' + this.container._yuid);
+    this._clearContents();
+    GraphicsBlockListRender.superclass.destroy.call(this);
+    this.container.remove();
+  },
+  
+  /**
+   * Renders/Re-renders the graphics block list.  Removes all the elements in this block list,
+   * then re-renders the block list.
+   */
   render : function() {
     var blockList = this.get('blockList'),
-        blocks = blockList,
+        blocks = blockList.get('blocks'),
         isInline = blockList.isInline();
     
-    blocks = blockList.get('blocks');
-    blockList.detachAll('blocksChange');
-    blockList.after('blocksChange', blockList.handleRender);
-    
+    console.log('rendering: ' + this.container._yuid + ' with block list ' + blockList._yuid);
+    // Set this block list's position on the stage if it's not part of another block.
     if (!isInline) {
       this.container.setStyle('left', blockList.get('x'));
       this.container.setStyle('top', blockList.get('y'));
       this.container.setStyle('position', 'absolute');
     }
-
     
+    // If the container is not in the document, add it to the parent element.
     if (!this.container.inDoc()) {
       this.get('parent').append(this.container);
     }
     
-    // reset the contents of the block list
-    this.container.setContent('');
+    // Reset the contents of the block list
+    this._clearContents();
     
+    this._currentBlockRenders = [];
     blocks.each(function(block) {
       // Wrap the block wrapper
       var blockWrapper = Y.Node.create('<div class="blockWrapper"></div>'), 
@@ -214,28 +319,66 @@ var GraphicsBlockListRender = Y.Base.create("graphicsBlockListRender", Y.View, [
         block : block,
         parent : blockWrapper,
         parentBlockList : this.get('blockList'),
-        blockStageContainer : this.get('blockStageContainer')
+        blockStageContainer : this.get('blockStageContainer'),
+        plugDragDrop : this.get('plugDragDrop')
       });
       graphicsBlock.render();
       region = graphicsBlock.container.get('region');
       blockWrapper.setStyle('width', region.width);
       blockWrapper.setStyle('height', region.height);
+      this._currentBlockRenders.push(graphicsBlock);
     }, this);
     
     // Default the height if ther are no blocks in the block list and we're an inline block
     if (blocks.size() === 0 && isInline) {
       this.container.setStyle('height', '15px');
     }
+  },
+  
+  /**
+   * Clears the contents of the block list and destroys the current blocks in the block render.
+   */
+  _clearContents : function() {
+    if (this._currentBlockRenders) {
+      Y.Array.each(this._currentBlockRenders, function(blockRender) {
+        if (blockRender.container.drop) {
+          blockRender.container.drop.destroy();
+        }
+        if (blockRender.container.dd) {
+          blockRender.container.dd.destroy();
+        }
+        blockRender.container.remove();
+      });
+    }
+    this.container.setContent('');
   }
 }, {
   ATTRS : {
+    /**
+     * The stage where this block list will be rendered.
+     */
     'blockStageContainer' : {
       value : null
     },
+    /**
+     * The block list model.  TODO: consolidate with the model attribute for view
+     */
     'blockList' : {
       value : null
     },
+    /**
+     * The parent container for this block list render.  This value is optional if the container is already
+     * in the document.
+     */
     'parent' : {
+      value : null
+    },
+    
+    'plugDragDrop' : {
+      value : true
+    },
+    
+    'hoverStatus' : {
       value : null
     }
   }
@@ -267,6 +410,32 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     }
     
     this.set('blockFillColor', color);
+    this.after('hoverStatusChange', this._renderHoverStatus);
+  },
+  
+  _renderHoverStatus : function(e) {
+    if (this.hover) {
+      this.hover.remove();
+    }
+    
+    var hoverStatus = this.get('hoverStatus');
+    if (hoverStatus === 'top' || hoverStatus === 'bottom') {
+      var partition = Y.Node.create('<div></div>');
+      partition.setStyle("width", "80px");
+      partition.setStyle("height", "15px");
+      partition.setStyle("opacity", 0.5);
+      partition.setStyle("backgroundColor", "#000");
+      
+      var region = this.container.get('region');
+      
+      // Add the child to the document
+      Y.one("body").appendChild(partition);
+      partition.setX(region.left);
+      partition.setY(hoverStatus === 'top' ? region.top - 15 : region.bottom);
+      
+      this.hover = partition;
+    }
+
   },
   
   _renderBody : function() {
@@ -345,7 +514,8 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     var newBlock = new GraphicsBlockRender({
       block : block,
       container : parent,
-      blockStageContainer : this.get('blockStageContainer')
+      blockStageContainer : this.get('blockStageContainer'),
+      plugDragDrop : false
     });
     newBlock.render();
   },
@@ -368,41 +538,34 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       var gbList = new GraphicsBlockListRender({
         parent : this.container,
         blockList : innerBlocks,
-        blockStageContainer : this.get('blockStageContainer')
+        blockStageContainer : this.get('blockStageContainer'),
+        plugDragDrop : this.get('plugDragDrop')
       });
+      
+      // TODO:
+      // Since _renderHoverStatus only require this.container, this method also works
+      // with 'this' being a blockListREnder.  However, it should be explicit in the class
+      // heirarchy that this happens.
+      gbList.after('hoverStatusChange', this._renderHoverStatus);
       gbList.render();
       
-      // Handle the case 
+      // Handle the case when the number of inner blocks is zero, so we need to listen to drop
+      // events directly on the block list
       if (innerBlocks.get('blocks').size() === 0 && !this._copyOnDrag) {
-        gbList.container.plug(Y.Plugin.Drop);
-        gbList.container.drop.on('drop:enter', this._handleEmptyInnerEnter, null, this);
-        gbList.container.drop.on('drop:exit', this._handleEmptyInnerExit, null, this);
+        gbList.container.plug(IgnoreOffsetDrop);
+        gbList.container.drop.on('drop:enter', this._onDropEnter, this, innerBlocks, gbList);
+        gbList.container.drop.on('drop:exit', this._onDropExit, this, innerBlocks, gbList);
       }
       
       // TODO:
       // Indent as far as the width of the left bar, for now we'll say it's 15, but
       // we need to get this property dynamically
       
-      // TODO: I NEED TO RETHINK THIS
+      // TODO: I need to redo this in terms of 'innerWidth' and 'outerWidth'
       var paddingLeft = parseInt(this.container.getStyle('paddingLeft').split("px")[0], 10);
       var paddingTop = parseInt(this.container.getStyle('paddingTop').split("px")[0], 10);
       gbList.container.setStyle('marginLeft', 15 - paddingLeft);   
       gbList.container.setStyle('marginTop', bodyHeight - paddingTop);
-    }
-  },
-  
-  _handleEmptyInnerEnter : function(e, self) {
-    var drag = e.drag;
-    var block = self.get('block');
-    if (drag) {
-      drag.innerBlockList = block.get('innerBlocks');
-    }
-  },
-  
-  _handleEmptyInnerExit : function(e, self) {
-    var drag = Y.DD.DDM.get('activeDrag');
-    if (drag && drag.innerBlockList && drag.innerBlockList.get('blocks').size() === 0) {
-      drag.innerBlockList = null;
     }
   },
   
@@ -440,8 +603,8 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
         stroke : {
           weight : 0
         },
-        showHeader : block._topBlocksAllowed,
-        showFooter : block._bottomBlocksAllowed
+        showTopConnector : block._topBlocksAllowed,
+        showBottomConnector : block._bottomBlocksAllowed
       });
       // force the height of the container to match the new calculated height
       // TODO: this is another case where I'm hardcoding the height of the tab
@@ -460,45 +623,130 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
         stroke : {
           weight : 0
         },
-        showHeader : block._topBlocksAllowed,
-        showFooter : block._bottomBlocksAllowed
+        showTopConnector : block._topBlocksAllowed,
+        showBottomConnector : block._bottomBlocksAllowed
       });
     }
-    
 
+    // I'm confused why I need to do this for firefox, but if we don't set an explicit width on
+    // blocks that contain several inline blocks, firefox will wrap the last block to the next line
+    if (block._topBlocksAllowed) {
+      container.setStyle('width', width);
+    }
     this._plugDragDrop();
   },
   
   _plugDragDrop : function() {
-    
-    this.container.plug(Y.Plugin.Drag, { dragMode: 'intersect' });
-    this.container.plug(Y.Plugin.Drop);
+    if (this.get('plugDragDrop')) {
+      this.container.plug(Y.Plugin.Drag, { dragMode: 'point' }); // TODO: try different drag modes
+      
+      this.container.dd.on('drag:start', this._onDragStart, null, this);
+      if (!this._copyOnDrag) {
+        this.container.plug(IgnoreOffsetDrop, {
+          block: this.get('block')
+        });
 
-    this.container.dd.on('drag:start', this._bringToFront, null, this);
-    this.container.dd.on('drag:end', this._bringToBack, null, this);
-    this.container.drop.on('drop:enter', this._onDropEnter, null, this);
-    this.container.drop.on('drop:exit', this._onDropExit, null, this);
+        this.container.drop.on('drop:over', this._onDropEnter, this, this.get('block'), this);
+        this.container.drop.on('drop:enter', this._onDropEnter, this, this.get('block'), this);
+        this.container.drop.on('drop:exit', this._onDropExit, this, this.get('block'), this);
+      } 
+    }
   },
-  
-  _onDropEnter : function(e, self) {
-    var drag = e.drag;
-    var block = self.get('block');
+
+  _updateDropStack : function(drag, dropTargetModel, dropTargetRender, isTop) {
+    var dropStack = drag.dropStack,
+        dropStackObj = Y.Array.find(dropStack, function(v) {
+      return v.target === dropTargetModel;
+    });
     
-    if (block._bottomBlocksAllowed ||  block._topBlocksAllowed) {
-      drag.dstBlock = self.get('block');
-      drag.dstBlockList = self.get('parentBlockList');    
+    if (!dropStackObj) {
+      dropStackObj = {
+        target: dropTargetModel,
+        render : dropTargetRender
+      };
+      dropStack.push(dropStackObj);
+    }
+    
+    dropStackObj.isTop = isTop;
+    
+    // If the current drop stack object is the active drop element, update the hover status
+    this._updateHoverStatus(dropStack);
+    
+  },
+  
+  /**
+   * Updates the hover status of the drop stack object and nulls out the hover status of other
+   * objects.
+   */
+  _updateHoverStatus: function(dropStack) {
+    var dropStackObj;
+    if (dropStack.length > 0) {
+      dropStackObj = dropStack[dropStack.length - 1];
+      dropStackObj.render.set('hoverStatus', 
+        dropStackObj.target.getHoverStatus(dropStackObj.isTop));
+    }
+      
+    Y.Array.each(dropStack, function(v, i) {
+      if (i !== dropStack.length - 1) {
+        v.render.set('hoverStatus', null);  
+      }
+    });
+  },
+  
+  /**
+   * Returns true if the mouse position is closer to the top of this block then the bottom
+   * of it.
+   */
+  _determineIsTop : function(drag, drop) {
+    var dropTop = drop.region.top,
+        dropBottom = drop.region.bottom,
+        mouseY = drag.mouseXY[1];
+    
+    return Math.abs(mouseY - dropTop) < Math.abs(mouseY - dropBottom);
+  },
+  
+  /**
+   * Helper method which removes the given element from the drop stack and updates the hover status
+   * of each other element.
+   */
+  _removeFromDropStack : function(drag, dropTargetBlock) {
+    var dropStack = drag.dropStack,
+        dropStackObj = Y.Array.find(dropStack, function(v) {
+          return v.target === dropTargetBlock;
+        });
+        
+    drag.dropStack = Y.Array.reject(dropStack, function(v) {
+      return v === dropStackObj;
+    });
+    dropStack = drag.dropStack;
+    
+    
+    if (dropStackObj) {
+      dropStackObj.render.set('hoverStatus', null);
+      this._updateHoverStatus(dropStack);
+    }
+
+  },
+  
+  _onDropEnter : function(e, dropTargetModel, dropTargetRender) {
+    var drag = e.drag,
+        dragTarget = drag.dragTarget,
+        isTop;
+    if (dropTargetModel.isValidDropTarget(dragTarget)) {
+      isTop = this._determineIsTop(drag, e.drop);
+      this._updateDropStack(drag, dropTargetModel, dropTargetRender, isTop);
     }
   },
   
-  _onDropExit : function(e, self) {
-    var drag = Y.DD.DDM.get('activeDrag');
-    if (drag && drag.dstBlock == self.get('block')) {
-      drag.dstBlock = null;
-      drag.dstBlockList = null;
+  _onDropExit : function(e, dropTargetBlock) {
+    var drag = Y.DD.DDM.activeDrag;
+
+    if (drag) {
+      this._removeFromDropStack(drag, dropTargetBlock);
     }
   },
   
-  _bringToFront : function(e, self) {
+  _onDragStart : function(e, self) {
     var blockList = self.get('parentBlockList'),
         drag = this,
         splitBlockList, splitBlockListRender,
@@ -507,12 +755,11 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     
     //Stop the event
     e.stopPropagation();
-      
-    self.container.setStyle("zIndex", 1);
+    
+    // Reset the drop stack
+    drag.dropStack = [];
     
     if (blockList && blockStageContainer) {
-      // Set the source block list on the drag instance
-      // drag.dstBlockList = blockList;
       
       // Get the block list that we're going to be dragging
       splitBlockList = blockList.splitBlockList(self.get('block'));
@@ -521,34 +768,29 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
       splitBlockListRender = new GraphicsBlockListRender({
         parent : blockStageContainer,
         blockStageContainer : blockStageContainer,
-        blockList : splitBlockList
+        blockList : splitBlockList,
+        plugDragDrop : false
       });
       
       splitBlockListRender.render();
-      drag.blockList = splitBlockList;
+      drag.dragTarget = splitBlockList;
       self.setupModDD(splitBlockListRender.container, drag);      
     }
     
-    // If we're supposed to copy on drag, we need to 
     if (self._copyOnDrag) {  
       //Some private vars
       copiedBlock = new GraphicsBlockRender({
         parent : self.get('parent'),
-        block : self.get('block')
+        block : self.get('block').copy(),
+        plugDragDrop : false
       });      
       copiedBlock.render();
       
-      // Set the block on the drag instance  TODO: is this the best way?
-      drag.block = copiedBlock.get('block').copy();
-      
-      // TODO: This doesn't make sense right now, since I'm justing messing
-      // around, figure out the correct event structure
+      // Set the block on the drag instance
+      drag.dragTarget = copiedBlock.get('block').copy();
       
       // Setup the DD instance
       self.setupModDD(copiedBlock.container, drag);
-
-      // Remove the listener TODO: I don't know if we need this
-      // this.detach('drag:start', this._bringToFront);
     }
     
   },
@@ -558,32 +800,13 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
    */
   setupModDD: function(mod, drag) {
     drag.set('dragNode', mod);
-      //Add some styles to the proxy node.
+    // Add some styles to the proxy node.
     drag.get('dragNode').setStyles({
-      opacity: '.5'
-    });
-    
-    //Remove the event's on the original drag instance
-    //dd.detachAll('drag:start');
-    //dd.detachAll('drag:end');
-    //dd.detachAll('drag:drophit');
-    
-    //It's a target
-    //dd.set('target', true);
-    //Setup the handles
-    //dd.addHandle('div.basicBlock');
-    //Remove the mouse listeners on this node
-    //dd._unprep();
-    //Update a new node
-    // dd.set('node', mod);
-    //Reset the mouse handlers
-    //dd._prep();
-        
-  },
-  
-  _bringToBack : function(e, self) {
-    self.container.setStyle("zIndex", 0);
+      opacity: '.5',
+      zIndex: 1
+    }); 
   }
+  
 }, {
   ATTRS : {
     'parentBlockList' : {
@@ -603,6 +826,12 @@ var GraphicsBlockRender = Y.Base.create("graphicsBlockRender", Y.View, [], {
     },
     'blockFillColor' : {
       value : '#3851d2'
+    },
+    'plugDragDrop' : {
+      value : true
+    },
+    'hoverStatus' : {
+      value : null
     }
   }
 });

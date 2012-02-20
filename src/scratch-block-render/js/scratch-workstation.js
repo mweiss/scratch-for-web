@@ -84,43 +84,59 @@ var BlockSelectionView = Y.Base.create("blockCreationView", Y.View, [], {
 var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
   render : function() {
     this.container.plug(Y.Plugin.Drop);
-    this.container.drop.on('drop:hit', this._onDropHit, null, this);
-    this.container.drop.on('drop:enter', this._onDropEnter, null, this);
-    this.container.drop.on('drop:exit', this._onDropExit, null, this);
+    Y.DD.DDM.on('drag:drophit', this._onDragEnd, null, this);
+    // this.container.drop.on('drop:hit', this._onDropHit, null, this);
   },
   
-  _onDropHit : function(e, self) {
+  _onDragEnd : function(e, self) {
+    
+    // Find the drag target and insert it on the active drop target.
+    
     // remove the drag instance and create it in the script view
     // Find the region and add it to the script view
     var dropNodeRegion = self.container.get('region'),
+        drag = e.drag,
         dragNodeRegion = e.drag.get('dragNode').get('region'),
-        srcBlock = e.drag.block,
-        innerBlockList = e.drag.innerBlockList,
-        srcBlockList = e.drag.blockList,
-        dstBlockList = e.drag.dstBlockList,
-        dstBlock = e.drag.dstBlock,
-        isTop = e.drag.isTop,
-        blockListContainer = Y.Node.create('<div class="blockListContainer"></div>'),
         relX = Math.max(e.drag.region[0] - dropNodeRegion[0], 0),
         relY = Math.max(e.drag.region[1] - dropNodeRegion[1], 0),
-        blockList,
-        blockListRender;
+        blockListRender,
+        dropStackObj,
+        srcBlockList,
+        dragTarget = drag.dragTarget,
+        dstBlockList, dstBlock,
+        dropTargetParent,
+        isTop;
     
-    if (innerBlockList) {
-      dstBlockList = innerBlockList;
+        
+    Y.Array.each(drag.dropStack, function(v) {
+      v.render.set('hoverStatus', null);
+    });
+    
+    if (drag.dropStack.length > 0) {
+      dropStackObj = drag.dropStack[drag.dropStack.length - 1];
+      if (dropStackObj.target.type === 'blockList') {
+        dstBlockList = dropStackObj.target;
+      }
+      else {
+        dropTargetParent = dropStackObj.target.get('parent');
+        if (dropTargetParent.type === 'blockList') {
+          dstBlockList = dropTargetParent;
+          dstBlock = dropStackObj.target;
+        }
+      }
+      isTop = dropStackObj.isTop;
     }
-    if (srcBlock) {
-      blockList = new Y.BlockListModel({
-        x : relX,
-        y : relY
-      });
-      srcBlock.set('parent', blockList);
-      blockList.get('blocks').add(srcBlock);
+    
+    if (dragTarget.type !== 'blockList') {
+      srcBlockList = new Y.BlockListModel();
+      var blocks = srcBlockList.get('blocks');
+      blocks.add(dragTarget);
+      srcBlockList.set('blocks', blocks);
     }
-    else if (srcBlockList) {
-      blockList = srcBlockList;
-      blockList.set('x', relX);
-      blockList.set('y', relY);
+    else {
+      srcBlockList = new Y.BlockListModel();
+      srcBlockList.set('blocks', dragTarget.get('blocks'));
+      dragTarget.destroy();
     }
     
     // Delete the node that we're dragging
@@ -128,16 +144,19 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
 
     // If we have a block list to add to, then use that
     if (dstBlockList) {
-      self.addToBlockList(blockList, dstBlockList, dstBlock, isTop);
+      self.addToBlockList(srcBlockList, dstBlockList, dstBlock, isTop);
     }
     else {
+      srcBlockList.set('x', relX);
+      srcBlockList.set('y', relY);
       blockListRender = new Y.GraphicsBlockListRender({
         parent : self.container,
-        blockList : blockList,
+        blockList : srcBlockList,
         blockStageContainer : self.container
       });
       blockListRender.render();
     }
+    console.log('drop finish');
     
   },
   
@@ -157,7 +176,6 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
         addToNewBlocks = function() {
           var blks = blockList.get('blocks');
           blks.each(function(blk) {
-            blk.set('parent', dstBlockList);
             newBlocks.add(blk);
           });
           inserted = true;
@@ -179,12 +197,8 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
     }
     
     dstBlockList.set('blocks', newBlocks);
-  },
-  
-  _onDropEnter : function(e, self) {
-  },
-  
-  _onDropExit : function(e, self) {
+    blockList.set('blocks', new Y.ModelList());
+    blockList.destroy();
   }
 }, {
   ATTRS : {

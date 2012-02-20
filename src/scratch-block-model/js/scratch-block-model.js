@@ -1,26 +1,15 @@
 /*global Y*/
 
 /**
- * FIXME: Enter a description for the scratch-block-model module
+ * The scratch block model contains classes related to modeling scratch block and block lists.
  * @module scratch-block-model
  */
+var BaseRenderableModel, BaseBlockModel, emptyModelListFn, ProgramModel, BlockListModel;
 
-/**
- * FIXME: Enter a description for the ScratchBlockModel class
- * @class ScratchBlockModel
- * @extends Widget
- * @constructor
- */
-var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*/], {
-  _innerBlocksAllowed : false,
-  _topBlocksAllowed : false,
-  _bottomBlocksAllowed : false,
-  _returnsValue : false,
-  _category : null,
-  _defaultInputBlocks : {},
+BaseRenderableModel = Y.Base.create("baseRenderableModel", Y.Model, [], {
   
   /**
-   * TODO: does this really make sense, render should be the change event, but need to see reprocusions of that.
+   * Event handler that determines which block should fire the render event.  
    */
   handleRender : function() {
     var parent = this.get('parent');
@@ -32,11 +21,80 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
     }
   },
   
+  getHoverStatus : function(isTop) {
+    return 'bottom';
+  },
+  
+  /**
+   * Returns true if it's okay to consider this renderable model a drop target for the given drag target.
+   * Drag target is also a BaseRenderableModel.
+   */
+  isValidDropTarget : function(dragTarget) {
+    // By default nothing is a valid drop target.
+    return false;
+  }
+},{
+  ATTRS: {
+    /**
+     * The parent block or block list.
+     */
+    parent : {
+      value : null
+    }
+  }
+});
+
+/**
+ * The base block model represents a scratch execution block.
+ * @class BaseBlockModel
+ * @extends Widget
+ * @constructor
+ */
+BaseBlockModel = Y.Base.create("baseBlockModel", BaseRenderableModel, [/*Y.WidgetParent*/], {
+  /**
+   * If true, this block allows an inner block list.  This is true for blocks like while and if.
+   */
+  _innerBlocksAllowed : false,
+  /**
+   * If true, the top connector should show for this block.  Hat blocks and input blocks have this set to false.
+   */
+  _topBlocksAllowed : false,
+  /**
+   * If true, the bottom connector should show for this block.  End blocks have this set to false.
+   */
+  _bottomBlocksAllowed : false,
+  /**
+   * Returns true if this block returns a value that another block can use as an argument.
+   */
+  _returnsValue : false,
+  /**
+   * The category of this block.
+   */
+  _category : null,
+  /**
+   * An object of input names to of default input blocks.  Blocks in the object are copied when dragged into
+   * the stage.
+   */
+  _defaultInputBlocks : {},
+  
+  /**
+   * The template text to show for the block.
+   */
+  statement : null,
+  
+  /**
+   * The type of block.  By default all blocks are type 'block'.  Primitives and input blocks have different types,
+   * which is when this property is relevant.
+   */
+  type : 'block',
+  
+  /**
+   * Makes a complete copy of this block.
+   */
   copy : function(parent) {
     
     // TODO: This method shouldn't be necessary
     var innerBlocks = this.get('innerBlocks'), newInnerBlocks,
-        statement = this.get('statement'),
         inputBlocks = this.get('inputBlocks'), newInputBlocks;
       
     if (innerBlocks) {
@@ -59,8 +117,8 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
 
     var copy = new BaseBlockModel({
       innerBlocks : newInnerBlocks,
-      statement : statement,
       inputBlocks : newInputBlocks,
+      value : this.get('value'),
       parent : parent
     });
     
@@ -76,6 +134,40 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
   },
   
   /**
+   * Returns true if this block is a valid drop target for the given drag target.
+   */
+  isValidDropTarget : function(dragTarget) {
+    // If the drag target is a block list, then we'll allow this as a drop target only
+    // if we're allowed to append to the top or bottom block
+    if (dragTarget.type === 'blockList') {
+      return this._bottomBlocksAllowed || this._topBlocksAllowed;
+    }
+    // Otherwise, if the drag target is just a block, we need to make sure that the connector's match.
+    else if (this._bottomBlocksAllowed) {
+      return dragTarget._topBlocksAllowed;
+    }
+    else if (this._topBlocksAllowed) {
+      return dragTarget._bottomBlocksAllowed;
+    }
+    // If this block has no top or bottom blocks, the drag target needs to return a value to be considered a valid
+    // target
+    else {
+      return dragTarget._returnsValue;
+    }
+  },
+  
+  /**
+   * Returns the hover status for this block model.
+   */
+  getHoverStatus : function(isTop) {
+    if (!(this._bottomBlocksAllowed || this._topBlocksAllowed)) {
+      return 'self';
+    }
+    else {
+      return isTop ? 'top' : 'bottom';
+    }
+  },
+  /**
    * @override Overriding the model init function so we can initialize the default block inputs.
    */
   init : function(cfg) {
@@ -83,21 +175,21 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
     this.initializeDefaultBlocks();
   },
   
-  createDefaultNumberInputBlockPrototype : function(value) {
+  createDefaultNumberInputBlock : function(value) {
     return new BaseBlockModel({
       type : 'default',
       value : value
     });
   },
   
-  createMenuItemPrototypeWithValues : function(values) {
+  createMenuItemWithValues : function(values) {
     return new BaseBlockModel({
       type : 'menuInput',
       values : values
     });
   },
   
-  createDegreePrototypeWithValues : function(value) {
+  createDegreeWithValues : function(value) {
     return new BaseBlockModel({
       type : 'degreeInput',
       value : value
@@ -122,15 +214,15 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
     Y.each(this._defaultInputBlocks, function(value, key) {
       var instance;
       if (Y.Lang.isNumber(value)) {
-        instance = this.createDefaultNumberInputBlockPrototype(value);
+        instance = this.createDefaultNumberInputBlock(value);
       }
       else if (Y.Lang.isObject(value)) {
         switch (value.type) {
           case 'menu':
-            instance = this.createMenuItemPrototypeWithValues(value.values);
+            instance = this.createMenuItemWithValues(value.values);
             break;
           case 'degree':
-            instance = this.createDegreePrototypeWithValues(value.value);
+            instance = this.createDegreeWithValues(value.value);
             break;
           case 'pointTowards':
             instance = this.createPointTowardsWithValues(value.value);
@@ -152,32 +244,27 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
 	  // For the base block model, execute will do nothing.
 	}
 },{
-
-	//CSS_PREFIX: "scratch-block-model",
-
 	ATTRS: {
-	  /**
-	   * The parent block or block list.
-	   */
-	  parent : {
-	    value : null,
-	    setter : function(value) {
-        if (value === null) {
-          console.log(this.statement);
-        }
+    innerBlocks : {
+      valueFn : function() {
+        return new BlockListModel({
+          parent : this
+        });
+      },
+      setter : function(value) {
+        value.set('parent', this);
         return value;
       }
-	  },
-	  
-    innerBlocks : {
-      value : null
-    },
-    
-    statement : {
-      value : null
     },
     
     inputBlocks : {
+      value : null
+    },
+      
+    /**
+     * If this block represents a primitive or value, then it is stored in this attribute.
+     */
+    value : {
       value : null
     }
 	}
@@ -186,11 +273,11 @@ var BaseBlockModel = Y.Base.create("baseBlockModel", Y.Model, [/*Y.WidgetParent*
 /**
  * Helper method which returns an empty model list.
  */
-var emptyModelListFn = function() {
+emptyModelListFn = function() {
   return new Y.ModelList();
 };
 
-var ProgramModel = Y.Base.create('programModel', Y.Model, [], {
+ProgramModel = Y.Base.create('programModel', Y.Model, [], {
   
 }, {
   ATTRS : {
@@ -203,20 +290,26 @@ var ProgramModel = Y.Base.create('programModel', Y.Model, [], {
   }
 });
 
-var BlockListModel = Y.Base.create('blockListModel', Y.Model, [], {
+/**
+ * Model that represents a consecutive set of blocks.
+ */
+BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
   
   /**
-   * TODO: Duplicate code with BaseBlockModel
-   * TODO: does this really make sense, render should be the change event, but need to see reprocusions of that.
+   * Initializes the render handler when the blocks property changes.
    */
-  handleRender : function() {
-    var parent = this.get('parent');
-    if (parent) {
-      parent.handleRender();
-    }
-    else {
-      this.fire('render');
-    }
+  initializer : function() {
+    this.after('blocksChange', this.handleRender);
+  },
+  
+  type : 'blockList',
+  
+  /**
+   * A block list is only a valid drop target if it's empty.  Otherwise, we defer any drop actions
+   * to the individual blocks.
+   */
+  isValidDropTarget : function(dragTarget) {
+    return this.get('blocks').size() === 0;
   },
   
   /**
@@ -237,14 +330,10 @@ var BlockListModel = Y.Base.create('blockListModel', Y.Model, [], {
           splitBlocks.add(blocks.item(i));
         }
       }
-      if (newBlocks.size() > 0) {
-        this.set('blocks', newBlocks);
-      }
-      else {
-        // TODO: fix this as well
-        // this.destroy()
-        
-        this.set('blocks', newBlocks);
+      
+      this.set('blocks', newBlocks);
+      if (newBlocks.size() === 0 && !this.isInline()) {
+        this.destroy();
       }
       splitBlockList = new BlockListModel({
         blocks : splitBlocks
@@ -265,13 +354,13 @@ var BlockListModel = Y.Base.create('blockListModel', Y.Model, [], {
       value : null
     },
     /**
-     * The x coordinate of this block list.
+     * The x coordinate of this block list.  This attribute only matters if parent is null.
      */
     x : {
       value : 0
     },
     /**
-     * The y coordinate of this block list.
+     * The y coordinate of this block list.  This attribute only matters if parent is null.
      */
     y : {
       value : 0
@@ -280,123 +369,21 @@ var BlockListModel = Y.Base.create('blockListModel', Y.Model, [], {
      * A model list of blocks.  This value should never be null.
      */
     blocks : {
-      valueFn : emptyModelListFn
+      valueFn : emptyModelListFn,
+      
+      setter : function(value) {
+        if (value) {
+          value.each(function(v) {
+            v.set('parent', this);
+          }, this);
+        }
+        return value;
+      }
     }
   }
 });
 
 Y.BlockListModel = BlockListModel;
-
-/////// ----------
-// The following is test code, which should be removed later!
-Y.MoveBlockModel = Y.Base.create('moveBlockModel', BaseBlockModel, [],{
-  _topBlocksAllowed : true,
-  _bottomBlocksAllowed : true,
-  _category : 'motion',
-  statement : 'move {numSteps} steps',
-  
-  initialize : function() {
-  },
-  
-  evaluate : function(ctx) {
-    var inputBlocks = this.get('inputBlocks'), sprite = ctx.sprite, n = inputBlocks.numSteps.evaluate(ctx);
-    ctx.sprite.setX(sprite.getX() + n);
-  }
-});
-
-Y.ConstantBlockModel = Y.Base.create('ConstantBlockModel', BaseBlockModel,[], {
-  _returnsValue : true,
-  type : 'constant',
-  _category : 'variables',
-  
-  evaluate : function(ctx) {
-    return this.get('value');
-  }
-}, {
-  ATTRS : {
-    value : {
-      value : null
-    }
-  }
-});
-
-Y.LessThanBlockModel = Y.Base.create('LessThanBlockModel', BaseBlockModel, [],{
-  _returnsValue : true,
-  statement : '{left} < {right}',
-  _category : 'operators',
-  
-  initialize : function() {
-  },
-  
-  evaluate : function(ctx) {
-    var inputBlocks = this.get('inputBlocks'), 
-        left = inputBlocks.left.evaluate(ctx), 
-        right = inputBlocks.right.evaluate(ctx);
-    
-    if (Y.Lang.isObject(left)) {
-      left = left.get();
-    }
-    
-    if (Y.Lang.isObject(right)) {
-      right = right.get();
-    }
-    return left < right;
-  }
-});
-
-
-Y.VariableBlockModel = Y.Base.create('VariableBlockModel', BaseBlockModel, [],{
-  _returnsValue : true,
-  _category : 'variables',
-  
-  evaluate : function(ctx) {
-    return ctx.getVariable(this.get('variableName'));
-  }
-},
-{
-  ATTRS: {
-    variableName : {
-      value : null
-    }
-  }
-});
-
-Y.IncrementVariableBlockModel = Y.Base.create('IncrementBlockModel', BaseBlockModel, [], {
-  _returnsValue : true,
-  statement : 'increment {x}',
-  _category : 'operators',
-  
-  initialize : function() {
-  },
-  
-  evaluate : function(ctx) {
-    var inputBlocks = this.get('inputBlocks'), x = inputBlocks.x.evaluate(ctx);
-    x.set(x.get() + 1);
-  }
-});
-
-Y.WhileBlockModel = Y.Base.create('whileBlockModel', BaseBlockModel, [], {
-  _innerBlocksAllowed : true,
-  _topBlocksAllowed : true,
-  _bottomBlocksAllowed : true,
-  _category : 'control',
-  
-  statement : 'while {expression}',
-  initialize : function() {
-  },
-  
-  evaluate : function(ctx) {
-    var innerBlocks, inputBlocks = this.get('inputBlocks');
-    var ctxEvaluate = function(v) {
-      v.evaluate(ctx);
-    };
-    
-    while (inputBlocks.expression.evaluate(ctx)) {
-      innerBlocks = this.get('innerBlocks');
-      innerBlocks.each(ctxEvaluate);
-    }
-  }
-});
 
 /**
  * A temporary utility class for loading blocks.  TODO: needs to know the context of how it's loading block definitions
