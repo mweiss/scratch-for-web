@@ -8,6 +8,9 @@ var BLOCK_TYPES = {
     _topBlocksAllowed: true,
     _bottomBlocksAllowed: true,
     _innerBlocksAllowed: true
+  },
+  valueBlock : {
+    _returnsValue: true
   }
 };
 
@@ -58,13 +61,21 @@ var SPRITE_BLOCK_DEFINITIONS = {
       }
     },
     {
+      // TODO: this is a dumb block, remove once I know what everything's going to do
       statement: "point towards {sprite}",
       blockType: "simpleBlock",
       defaultInput : {
         sprite: {
-          type: 'pointTowards'
+          type: 'menu',
+          values: [
+            { name : 'dummy', value : 90, isDefault: true}
+          ]
         }
       }
+    },
+    {
+      statement: "x position",
+      blockType: "valueBlock"
     }
     
   ],
@@ -77,6 +88,7 @@ var SPRITE_BLOCK_DEFINITIONS = {
       }
     }
   ]
+  
 };
 
 Y.SPRITE_BLOCK_DEFINITIONS = SPRITE_BLOCK_DEFINITIONS;

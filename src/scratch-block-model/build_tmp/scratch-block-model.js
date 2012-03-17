@@ -10,6 +10,12 @@ var BaseRenderableModel, BaseBlockModel, emptyModelListFn, ProgramModel, BlockLi
 
 BaseRenderableModel = Y.Base.create("baseRenderableModel", Y.Model, [], {
   
+  initializer : function(config) {
+    if (config && config.type) {
+      this.type = config.type;
+    }
+  },
+  
   /**
    * Event handler that determines which block should fire the render event.  
    */
@@ -36,6 +42,8 @@ BaseRenderableModel = Y.Base.create("baseRenderableModel", Y.Model, [], {
     return false;
   }
 },{
+  INVALID_VALUE: "INVALID",
+  
   ATTRS: {
     /**
      * The parent block or block list.
@@ -97,7 +105,8 @@ BaseBlockModel = Y.Base.create("baseBlockModel", BaseRenderableModel, [/*Y.Widge
     
     // TODO: This method shouldn't be necessary
     var innerBlocks = this.get('innerBlocks'), newInnerBlocks,
-        inputBlocks = this.get('inputBlocks'), newInputBlocks;
+        inputBlocks = this.get('inputBlocks'), newInputBlocks = {},
+        defaultInputBlocks = this._defaultInputBlocks, newDefaultInputBlocks;
       
     if (innerBlocks) {
       newInnerBlocks = new Y.BlockListModel({
@@ -108,54 +117,89 @@ BaseBlockModel = Y.Base.create("baseBlockModel", BaseRenderableModel, [/*Y.Widge
           return value.copy(newInnerBlocks);
         }));
     }
-    
-    if (inputBlocks) {
-      newInputBlocks = new Y.ModelList();
-      newInputBlocks.add(
-        inputBlocks.map(function(value) {
-          return value.copy(newInputBlocks);
-        }));
-    }
 
     var copy = new BaseBlockModel({
       innerBlocks : newInnerBlocks,
       inputBlocks : newInputBlocks,
       value : this.get('value'),
+      values : this.get('values'),
       parent : parent
     });
+        
+    if (inputBlocks) {
+      Y.each(inputBlocks, function (value, key) {
+        newInputBlocks[key] = value.copy(copy);
+      }, this);
+    }
     
+    if (this._defaultInputBlocks) {
+      newDefaultInputBlocks = {};
+      Y.each(this._defaultInputBlocks, function (value, key) {
+        if (inputBlocks[key] === value) {
+          newDefaultInputBlocks[key] = newInputBlocks[key];
+        }
+        else {
+          newDefaultInputBlocks[key] = value.copy(copy);
+        }
+      }, this);
+    }
+
     copy._innerBlocksAllowed = this._innerBlocksAllowed;
     copy._topBlocksAllowed = this._topBlocksAllowed;
     copy._bottomBlocksAllowed = this._bottomBlocksAllowed;
     copy._returnsValue = this._returnsValue;
     copy._category  = this._category;
-    copy._defaultInputBlocks  = this._defaultInputBlocks;
+    copy._defaultInputBlocks  = newDefaultInputBlocks;
+    
     copy.statement  = this.statement;
+    copy.type = this.type;
     
     return copy;
+  },
+  
+  /**
+   * Sets the input on this block and fires the inputBlocksChange event.
+   */
+  setInputBlock : function(key, block) {
+    var inputBlocks = this.get('inputBlocks');
+    block.set('parent', this);
+    inputBlocks[key] = block;
+    this.fire('inputBlocksChange');
   },
   
   /**
    * Returns true if this block is a valid drop target for the given drag target.
    */
   isValidDropTarget : function(dragTarget) {
+    var blocks, topBlock, bottomBlock, blTarget, validDropTarget;
+    
+    var dragTargetTopBlocksAllowed, dragTargetBottomBlocksAllowed, dragTargetReturnsValue;
+    
     // If the drag target is a block list, then we'll allow this as a drop target only
     // if we're allowed to append to the top or bottom block
     if (dragTarget.type === 'blockList') {
-      return this._bottomBlocksAllowed || this._topBlocksAllowed;
+      blocks = dragTarget.get('blocks');
+      topBlock = blocks.item(0);
+      bottomBlock = blocks.item(blocks.size() - 1);
+      dragTargetTopBlocksAllowed = topBlock._topBlocksAllowed;
+      dragTargetBottomBlocksAllowed = bottomBlock._bottomBlocksAllowed;
+      dragTargetReturnsValue = blocks.size() === 1 && topBlock._returnsValue;
     }
-    // Otherwise, if the drag target is just a block, we need to make sure that the connector's match.
-    else if (this._bottomBlocksAllowed) {
-      return dragTarget._topBlocksAllowed;
-    }
-    else if (this._topBlocksAllowed) {
-      return dragTarget._bottomBlocksAllowed;
-    }
-    // If this block has no top or bottom blocks, the drag target needs to return a value to be considered a valid
-    // target
     else {
-      return dragTarget._returnsValue;
+      dragTargetTopBlocksAllowed = dragTarget._topBlocksAllowed;
+      dragTargetBottomBlocksAllowed = dragTarget._bottomBlocksAllowed;
+      dragTargetReturnsValue = dragTarget._returnsValue;
     }
+
+    // Either the drop allows the top  to connect to the bottom of the drag target, vise versa, or
+    // the drop target doesn't allow top or bottom blocks and has a parent block that indicates it's nested
+    // in another block.
+    return (this._bottomBlocksAllowed && dragTargetTopBlocksAllowed) ||
+           (this._topBlocksAllowed && dragTargetBottomBlocksAllowed) ||
+           (!this._topBlocksAllowed && 
+            !this._bottomBlocksAllowed && 
+            dragTargetReturnsValue && 
+            this.get('parent').type !== 'blockList');
   },
   
   /**
@@ -175,19 +219,25 @@ BaseBlockModel = Y.Base.create("baseBlockModel", BaseRenderableModel, [/*Y.Widge
   init : function(cfg) {
     BaseBlockModel.superclass.init.call(this, cfg);
     this.initializeDefaultBlocks();
+    this.after('inputBlocksChange', this.handleRender);
   },
   
   createDefaultNumberInputBlock : function(value) {
     return new BaseBlockModel({
-      type : 'default',
+      type : 'numberInput',
       value : value
     });
   },
   
   createMenuItemWithValues : function(values) {
+    var defaultValue = Y.Array.find(values, function(v) {
+      return v.isDefault;
+    });
+    
     return new BaseBlockModel({
       type : 'menuInput',
-      values : values
+      values : values,
+      value : defaultValue
     });
   },
   
@@ -212,7 +262,7 @@ BaseBlockModel = Y.Base.create("baseBlockModel", BaseRenderableModel, [/*Y.Widge
   },
   
   initializeDefaultBlocks : function() {
-    var initializedInputBlocks = {};
+    var initializedInputBlocks = {}, inputBlocks = this.get('inputBlocks');
     Y.each(this._defaultInputBlocks, function(value, key) {
       var instance;
       if (Y.Lang.isNumber(value)) {
@@ -236,15 +286,20 @@ BaseBlockModel = Y.Base.create("baseBlockModel", BaseRenderableModel, [/*Y.Widge
       if (!instance) {
         instance = this.createDefaultEmptyInput(value);
       }
+      instance.set('parent', this);
       initializedInputBlocks[key] = instance;
+      if (!inputBlocks[key]) {
+        inputBlocks[key] = instance;
+      }
     }, this);
     
-    this._defaultInputBlocks = initializedInputBlocks;
+    this._defaultInputBlocks = initializedInputBlocks;    
   },
   
 	evaluate : function(ctx) {
 	  // For the base block model, execute will do nothing.
 	}
+	
 },{
 	ATTRS: {
     innerBlocks : {
@@ -260,13 +315,20 @@ BaseBlockModel = Y.Base.create("baseBlockModel", BaseRenderableModel, [/*Y.Widge
     },
     
     inputBlocks : {
-      value : null
+      value : {}
     },
       
     /**
      * If this block represents a primitive or value, then it is stored in this attribute.
      */
     value : {
+      value : null
+    },
+    
+    /**
+     * The possible values for this block model.
+     */
+    values : {
       value : null
     }
 	}
@@ -300,7 +362,7 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
   /**
    * Initializes the render handler when the blocks property changes.
    */
-  initializer : function() {
+  initializer : function(config) {
     this.after('blocksChange', this.handleRender);
   },
   
@@ -406,7 +468,7 @@ BlockDefinitionUtils.prototype = {
         defaultInputBlocks = blockDefinition.defaultInputBlocks;
     var properties = Y.mix({
       _category: category,
-      _defaultInputBlocks: blockDefinition.defaultInput,
+      _defaultInputBlocks: blockDefinition.defaultInput ? blockDefinition.defaultInput : {},
       statement : blockDefinition.statement
     }, blockTypeProperties);
     return Y.Base.create(Y.guid(), BaseBlockModel, [], properties);
@@ -499,6 +561,9 @@ var BLOCK_TYPES = {
     _topBlocksAllowed: true,
     _bottomBlocksAllowed: true,
     _innerBlocksAllowed: true
+  },
+  valueBlock : {
+    _returnsValue: true
   }
 };
 
@@ -549,13 +614,21 @@ var SPRITE_BLOCK_DEFINITIONS = {
       }
     },
     {
+      // TODO: this is a dumb block, remove once I know what everything's going to do
       statement: "point towards {sprite}",
       blockType: "simpleBlock",
       defaultInput : {
         sprite: {
-          type: 'pointTowards'
+          type: 'menu',
+          values: [
+            { name : 'dummy', value : 90, isDefault: true}
+          ]
         }
       }
+    },
+    {
+      statement: "x position",
+      blockType: "valueBlock"
     }
     
   ],
@@ -568,6 +641,7 @@ var SPRITE_BLOCK_DEFINITIONS = {
       }
     }
   ]
+  
 };
 
 Y.SPRITE_BLOCK_DEFINITIONS = SPRITE_BLOCK_DEFINITIONS;

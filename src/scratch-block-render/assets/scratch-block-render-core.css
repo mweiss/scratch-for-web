@@ -4,7 +4,6 @@ div.basicBlock {
   position: relative;
   color: white;
   text-shadow: black 1px 1px 1px;
-  border-radius: 5px;
   padding: 5px 3px 4px 3px;
 }
 
@@ -13,4 +12,10 @@ div.basicBlock div.inputParentBlock {
   float: left;
   padding: 0px 3px 0px 3px;
   position: relative;
+}
+
+div.basicBlock input[type=number] {
+  width: 45px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
 }
