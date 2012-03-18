@@ -1,0 +1,24 @@
+{
+  "name"    : "scratch-for-web-loader",
+  "description" : "This module contains files relating to this project's loader",
+  "type"    : "js",
+  "version" : "1.0.0",
+  "skip"    : ["template", "jslint", "jshint"],
+  "sourceDir"   : "js",
+  "sourceFiles" : [
+    "loader.js"
+  ],
+  "buildDir"  : "../../build/scratch-for-web-loader",
+  "details" : {
+      "requires"   : null,
+      "optional"   : [],
+      "supersedes" : [],
+      "after"      : [],
+      "after_map"  : {},
+      "skinnable"  : false,
+      "submodules" : {},
+      "group"      : "",
+      "lang"       : [],
+      "use"        : null
+  }
+}

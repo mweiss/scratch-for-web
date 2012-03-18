@@ -1,0 +1,24 @@
+{
+  "name"    : "scratch-block-model",
+  "description" : "This module contains files relating to the scratch block model",
+  "type"    : "js",
+  "version" : "1.0.0",
+  "skip"    : ["template", "jslint", "csslint", "jshint"],
+  "sourceDir"   : "js",
+  "sourceFiles" : [
+    "scratch-block-model.js","scratch-sprite-model.js","block-definitions.js"
+  ],
+  "buildDir"  : "../../build/scratch-block-model",
+  "details" : {
+      "requires"   : ["widget","intl","model","model-list","node-screen"],
+      "optional"   : [],
+      "supersedes" : [],
+      "after"      : [],
+      "after_map"  : {},
+      "skinnable"  : false,
+      "submodules" : {},
+      "group"      : "",
+      "lang"       : [],
+      "use"        : null
+  }
+}
