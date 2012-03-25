@@ -88,13 +88,14 @@ var parseInputBlock = function(name, type) {
 
 var parseBlockDefinition = function(def) {
   var newBlockDefinition = {
-    type : def.type
-  }, statement = def.statement,
-     inputRegex = /\{[^\}]*\}/g,
-     delimiter = "@SPLIT@",
-     inputs, text, newStatement;
+        type : def.type
+      }, 
+      statement = def.statement,
+      inputRegex = /\{[^\}]*\}/g,
+      delimiter = "@SPLIT@",
+      inputs, text, newStatement;
   if (Y.Lang.isString(statement)) {
-    inputs = statement.match(inputRegex);
+    inputs = statement.match(inputRegex) || [];
     text = statement.replace(inputRegex, delimiter).split(delimiter);
     newStatement = [];
     Y.each(text, function(value, index) {

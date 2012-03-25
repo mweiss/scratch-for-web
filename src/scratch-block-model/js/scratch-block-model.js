@@ -165,6 +165,16 @@ BaseBlockModel = Y.Base.create("baseBlockModel", BaseRenderableModel, [/*Y.Widge
     this.fire('inputBlocksChange');
   },
   
+  removeInputBlock : function(block) {
+    var inputBlocks = this.get('inputBlocks');
+    Y.each(inputBlocks, function(value, key) {
+      if (value === block) {
+        inputBlocks[key] = this._defaultInputBlocks[key];
+      }
+      value.set('parent', null);
+    }, this);
+    this.fire('inputBlocksChange');
+  },
   /**
    * Returns true if this block is a valid drop target for the given drag target.
    */
@@ -374,6 +384,13 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
     return this.get('blocks').size() === 0;
   },
   
+  isSingleReturnValueBlock : function() {
+    var blocks = this.get('blocks');
+    if (blocks.size() === 1) {
+      return blocks.item(0)._returnsValue;
+    }
+  },
+  
   /**
    * Helper method which removes the blocks from this block to the end of the model list and
    * replaces the blocks model list.
@@ -409,12 +426,6 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
   }
 }, {
   ATTRS : {
-    /**
-     * The parent block model that contains this block list.
-     */
-    parent : {
-      value : null
-    },
     /**
      * The x coordinate of this block list.  This attribute only matters if parent is null.
      */

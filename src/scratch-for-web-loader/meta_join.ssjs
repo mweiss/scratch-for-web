@@ -1,4 +1,4 @@
-
+// mweiss - I've modified this from yproject's meta join so it works with ybuild
 var fs = require('fs'), path = require('path');
 
 // Get the loader module name
@@ -12,61 +12,31 @@ var meta_properties = {};
 
 fs.readdir(srcDirectory, function(err, files) {
 	files.forEach(function(f) {
-		if(f != 'build.xml' && f != loaderModule) {
+		if(f != loaderModule) {
 			
-			var buildProperties = srcDirectory+f+'/build.properties';
+			var buildProperties = srcDirectory+f+'/build.json';
 			path.exists(buildProperties, function(exists) {  
 			
 				if(exists) {
 				
 					fs.readFile(buildProperties, function (err, data) {
 			  			if (err) throw err;
-			
+			      var buildJson = JSON.parse(data);
 						
 						var componentName = null, 
 							 requires = [],
 							 lang = [];
+			
+						// component name
+						if(buildJson){
+							componentName = buildJson.name;
+						}
 						
-						var lines = data.toString().split("\n");
-						lines.forEach(function(line) {
-							
-							// component name
-							var m = line.match(/^\s*component\s*=\s*([^\n]*)/);
-							if(m){
-								componentName = m[1];
-							}
-							
-							// required modules
-							var m = line.match(/^\s*component.requires\s*=\s*([^\n]*)/);
-							if(!m) {
-								m = line.match(/^\s*component.use\s*=\s*([^\n]*)/);
-							}
-							if(m){
-								var req = m[1].trim().split(',');
-								if(req != "") {
-									requires = req;
-									for(var i = 0 ; i < requires.length ; i++) {
-										requires[i] = requires[i].trim();
-									}
-								}
-								else {
-									requires = [];
-								}
-							}
-							
-							// lang
-							var m = line.match(/^\s*component.lang\s*=\s*([^\n]*)/);
-							if(m){
-								var req = m[1].trim().split(',');
-								if(req != "") {
-									lang = req;
-									for(var i = 0 ; i < lang.length ; i++) {
-										lang[i] = lang[i].trim();
-									}
-								}
-							}
-							
-						});
+						// required modules
+						requires = buildJson.details.requires;
+						
+						// lang
+						lang = buildJson.details.lang;
 						
 						if( !componentName || !requires ) {
 							console.log("Unable to parse build.properties in folder: "+buildProperties);

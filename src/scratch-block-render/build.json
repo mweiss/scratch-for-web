@@ -3,13 +3,14 @@
   "description" : "This module contains files relating to the scratch block rendering libraries",
   "type"    : "js",
   "version" : "1.0.0",
-  "skip"    : ["template", "jslint", "jshint"],
+  "skip"    : [],
   "sourceDir"   : "js",
   "sourceFiles" : [
     "block-shapes.js","ignore-offset-drop.js","scratch-block-render.js",
     "scratch-sprite-render.js","scratch-workstation.js"
   ],
   "buildDir"  : "../../build/scratch-block-render",
+  "assetsDir" : "assets",
   "details" : {
       "requires"   : ["base","view","scratch-block-model","dd-plugin",
                       "dd-drop-plugin","graphics","substitute","escape","tabview"],

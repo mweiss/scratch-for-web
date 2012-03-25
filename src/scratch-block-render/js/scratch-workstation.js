@@ -176,8 +176,6 @@ var SpriteScriptView = Y.Base.create("spriteScriptView", Y.View, [], {
 
     // Find the appropriate input for this block
     Y.each(inputBlocks, function(value, key) {
-      console.log(dstBlock);
-      console.log(value);
       if (dstBlock === value) {
         inputKey = key;
       }

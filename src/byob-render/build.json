@@ -6,6 +6,7 @@
   "skip"    : ["template", "jslint", "csslint", "jshint"],
   "sourceDir"   : "js",
   "sourceFiles" : [
+    "block-shapes.js"
   ],
   "buildDir"  : "../../build/byob-render",
   "assetsDir" : "assets",

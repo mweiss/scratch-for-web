@@ -19,3 +19,7 @@ div.basicBlock input[type=number] {
   border-radius: 5px;
   border: 1px solid #ccc;
 }
+
+div.blockHover.basicBlock input[type=number] {
+  border: 10px solid #ccc;
+}

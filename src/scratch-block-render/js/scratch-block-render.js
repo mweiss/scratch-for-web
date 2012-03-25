@@ -61,7 +61,14 @@ var BaseGraphicsRender = Y.Base.create("baseGraphicsRender", Y.View, [], {
       
       this.hover = partition;
     }
-
+    // TODO: there's a bug where the hover class doesn't show as isn't being updated if you drag a block that
+    // is an input block over another input block.
+    if (hoverStatus === 'self') {
+      this.container.addClass('blockHover');
+    }
+    else {
+      this.container.removeClass('blockHover');
+    }
   }
 },{
   ATTRS : {
@@ -291,7 +298,6 @@ BaseGraphicsBlockRender = Y.Base.create("graphicsBlockRender", BaseGraphicsRende
       if (block) {
         this._renderBlock(container, block, parent);
       }
-      console.log(id);
       // Now update the max height property
       maxHeight = Math.max(maxHeight, parent.get('region').height);
     }, this);
@@ -571,7 +577,7 @@ BaseGraphicsBlockRender = Y.Base.create("graphicsBlockRender", BaseGraphicsRende
         drag = this,
         splitBlockList, splitBlockListRender,
         blockStageContainer = self.get('blockStageContainer'),
-        copiedBlock;
+        copiedBlockRender;
     
     //Stop the event
     e.stopPropagation();
@@ -579,8 +585,14 @@ BaseGraphicsBlockRender = Y.Base.create("graphicsBlockRender", BaseGraphicsRende
     // Reset the drop stack
     drag.dropStack = [];
     
+    // Handle the case where there exists a block list, but it's just a wrapper around a block that returns
+    // a value.  In this case, we don't want to treat the block 
+    if (blockList && blockList.isSingleReturnValueBlock()) {
+      blockList = null;
+    }
+    
+    // The case where we're dragging a block list
     if (blockList && blockStageContainer) {
-      
       // Get the block list that we're going to be dragging
       splitBlockList = blockList.splitBlockList(self.model);
       
@@ -596,23 +608,42 @@ BaseGraphicsBlockRender = Y.Base.create("graphicsBlockRender", BaseGraphicsRende
       drag.dragTarget = splitBlockList;
       self.setupModDD(splitBlockListRender.container, drag);      
     }
-    
-    if (self._copyOnDrag) {  
-      //Some private vars
-      copiedBlock = GraphicsBlockRender({
+    // The case where we're dragging an input that needs to be copied onto the stage
+    else if (self._copyOnDrag) {  
+      // Some private vars
+      copiedBlockRender = GraphicsBlockRender({
         parent : self.get('parent'),
         model : self.model.copy(),
         plugDragDrop : false
       });      
-      copiedBlock.render();
+      copiedBlockRender.render();
       
       // Set the block on the drag instance
-      drag.dragTarget = copiedBlock.model.copy();
+      drag.dragTarget = copiedBlockRender.model.copy();
       
       // Setup the DD instance
-      self.setupModDD(copiedBlock.container, drag);
+      self.setupModDD(copiedBlockRender.container, drag);
     }
-    
+    // The case where we're dragging a block that shouldn't be copied
+    else {
+      drag.dragTarget = self.model;
+      if (parent && parent.type === 'blockList') {
+        parent.splitBlockList(self.model);
+      }
+      else if (parent) {
+        parent.removeInputBlock(self.model);
+      }
+      
+      copiedBlockRender = GraphicsBlockRender({
+        parent : blockStageContainer,
+        blockStageContainer : blockStageContainer,
+        model : self.model,
+        plugDragDrop : false
+      });
+      copiedBlockRender.render();
+      
+      self.setupModDD(copiedBlockRender.container, drag);
+    }
   },
   
   /**

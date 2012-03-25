@@ -167,6 +167,16 @@ BaseBlockModel = Y.Base.create("baseBlockModel", BaseRenderableModel, [/*Y.Widge
     this.fire('inputBlocksChange');
   },
   
+  removeInputBlock : function(block) {
+    var inputBlocks = this.get('inputBlocks');
+    Y.each(inputBlocks, function(value, key) {
+      if (value === block) {
+        inputBlocks[key] = this._defaultInputBlocks[key];
+      }
+      value.set('parent', null);
+    }, this);
+    this.fire('inputBlocksChange');
+  },
   /**
    * Returns true if this block is a valid drop target for the given drag target.
    */
@@ -374,6 +384,13 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
    */
   isValidDropTarget : function(dragTarget) {
     return this.get('blocks').size() === 0;
+  },
+  
+  isSingleReturnValueBlock : function() {
+    var blocks = this.get('blocks');
+    if (blocks.size() === 1) {
+      return blocks.item(0)._returnsValue;
+    }
   },
   
   /**
