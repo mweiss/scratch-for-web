@@ -1,0 +1,28 @@
+{
+  "name"    : "byob-model",
+  "description" : "This module contains files relating to the scratch block model",
+  "type"    : "js",
+  "version" : "1.0.0",
+  "skip"    : ["template", "jslint", "csslint", "jshint"],
+  "sourceDir"   : "js",
+  "sourceFiles" : [
+    "types.js", 
+    "block-definitions.js",
+    "base-renderable-model.js",
+    "expression-block-model.js",
+    "block-list-model.js"
+  ],
+  "buildDir"  : "../../build/byob-model",
+  "details" : {
+      "requires"   : ["base","intl","model","model-list","node-screen"],
+      "optional"   : [],
+      "supersedes" : [],
+      "after"      : [],
+      "after_map"  : {},
+      "skinnable"  : false,
+      "submodules" : {},
+      "group"      : "",
+      "lang"       : [],
+      "use"        : null
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name"    : "byob-render",
+  "description" : "This module contains files relating to the scratch block model",
+  "type"    : "js",
+  "version" : "1.0.0",
+  "skip"    : ["template", "jslint", "csslint", "jshint"],
+  "sourceDir"   : "js",
+  "sourceFiles" : [
+  ],
+  "buildDir"  : "../../build/byob-render",
+  "assetsDir" : "assets",
+  "details" : {
+      "requires"   : ["base","view","byob-model","dd-plugin","dd-drop-plugin",
+                      "graphics","substitute","escape","tabview"],
+      "optional"   : [],
+      "supersedes" : [],
+      "after"      : [],
+      "after_map"  : {},
+      "skinnable"  : false,
+      "submodules" : {},
+      "group"      : "",
+      "lang"       : [],
+      "use"        : null
+  }
+}
