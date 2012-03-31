@@ -52,7 +52,7 @@ var CORE_BLOCK_DEFINITIONS = {
           name: "defaultStatement",
           type: "reporter"
         }],
-      type: "command"
+      type: "statement"
     }
   ]
 };

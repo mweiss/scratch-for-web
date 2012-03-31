@@ -29,6 +29,81 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
     ExpressionBlockModel.superclass.initializer.call(this, cfg);
     this.defaultInputBlocks = cfg.defaultInputBlocks || {};
     this.category = cfg.category;
+    
+    if (!cfg._noRefresh) {
+      this._refreshDefaultInputBlocks();
+    }
+  },
+  
+  /**
+   * Returns the default input block for the given type.
+   */
+  _getDefaultInputBlock: function(type) {
+    switch (type.name) {
+      case "expression":
+      case "statement":
+        return new ExpressionBlockModel({blockDefinition: {
+          type: type,
+          parent: this,
+          statement: []
+        }});
+      case "cShape":
+        return new Y.BlockListModel({ parent: this });
+      default:
+        throw "This block is not supported " + type.name;
+    } 
+  },
+  
+  /**
+   * I am a method which initializes default input blocks that have not been initialized yet.  If the
+   * corresponding input block has not been created, I silently set that input to the default input.
+   */
+  _refreshDefaultInputBlocks: function() {
+    var inputBlocks = this.get("inputBlocks"), 
+        defaultInputBlocks = this.defaultInputBlocks;
+    
+    var setInputBlocks = function(ele, inputIndex) {
+      var type, name, size, i, j;
+      if (Y.Lang.isObject(ele)) {
+        type = ele.type;
+        name = ele.name;
+        if (type === "repeat") {
+          size = ele.size;
+          Y.each(ele.subBlocks, function(subBlock) {
+            if (Y.Lang.isObject(subBlock)) {
+              if (!defaultInputBlocks[name]) {
+                defaultInputBlocks[name] = [];
+              }
+              if (!inputBlocks[name]) {
+                inputBlocks[name] = [];
+              }
+              for (i = 0; i < size; i += 1) {
+                setInputBlocks.call(this, subBlock, inputIndex);
+              }
+            }
+          }, this);
+        }
+        else {
+          if (Y.Lang.isNumber(inputIndex) && !defaultInputBlocks[name][inputIndex]) {
+            defaultInputBlocks[name][inputIndex] = this._getDefaultInputBlock(type);
+          }
+          else if (!defaultInputBlocks[name]) {
+            defaultInputBlocks[name] = this._getDefaultInputBlock(type);
+          }
+          
+          if (Y.Lang.isNumber(inputIndex) && !inputBlocks[name][inputIndex]) {
+            inputBlocks[name][inputIndex] = defaultInputBlocks[name][inputIndex];
+          }
+          else if (!inputBlocks[name]) {
+            inputBlocks[name] = defaultInputBlocks[name];
+          }
+        }
+      }
+    };
+    
+    Y.each(this.get('blockDefinition').statement, function(ele) {
+      setInputBlocks.call(this, ele);
+    }, this);
   },
   
   /**
@@ -38,7 +113,8 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
     var copy = new ExpressionBlockModel({
           parent: parent,
           type: this.type,
-          blockDefinition: Y.clone(this.get("blockDefinition"))
+          blockDefinition: Y.clone(this.get("blockDefinition")),
+          _noRefresh: true
         }),
         
         copiedBlocks = {},
@@ -67,8 +143,8 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
   },
   
   /**
-   * I am a method which returns true if there exists a block in defaultBlocks that is strictly equal to me.  I return
-   * false otherwise.
+   * I am a method which returns true if there exists a block in defaultBlocks that is strictly equal to me.
+   * I return false otherwise.
    */
   _isDefaultBlock: function(block) {
     var found = false;
