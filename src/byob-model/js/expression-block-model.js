@@ -224,3 +224,5 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
     }
   }
 });
+
+Y.ExpressionBlockModel = ExpressionBlockModel;

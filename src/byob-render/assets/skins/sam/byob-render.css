@@ -1,0 +1,13 @@
+div.blkExpr {
+  display: inline-block;
+  border-radius: 5px;
+  position: relative;
+  color: white;
+  text-shadow: black 1px 1px 1px;
+}
+
+
+div.blkExpr div.blkIpe {
+  float: left;
+  padding: 0px 3px 0px 3px;
+}

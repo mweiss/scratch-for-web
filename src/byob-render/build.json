@@ -6,7 +6,10 @@
   "skip"    : ["template", "jslint", "csslint", "jshint"],
   "sourceDir"   : "js",
   "sourceFiles" : [
-    "block-shapes.js"
+    "block-shapes.js",
+    "ignore-offset-drop.js",
+    "expression-block-render.js",
+    "block-render.js"
   ],
   "buildDir"  : "../../build/byob-render",
   "assetsDir" : "assets",

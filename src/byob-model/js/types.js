@@ -17,7 +17,7 @@
  * and determines if it's okay for a block to be an input block for a given type of input.
  */
 var Type = function(cfg) {
-      Y.mix(this, cfg);
+      Y.mix(this, cfg, true);
     },
     Types;
 
