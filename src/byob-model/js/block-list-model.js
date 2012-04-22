@@ -10,6 +10,7 @@ emptyModelListFn = function() {
  * order.
  */
 BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
+  type: "blockList",
   
   /**
    * I am a method which returns a deep copy of myself and my sub blocks.
@@ -99,3 +100,5 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
     }
   }
 });
+
+Y.BlockListModel = BlockListModel;

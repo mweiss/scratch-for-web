@@ -22,45 +22,87 @@ YUI({
   filter : 'raw'
 }).use("byob-render", function(Y) {
   var blockDefinitions = [
-  {
-    type: Y.BlockTypes.statement,
-    statement: ["A simple statement"]
-  },
-  {
-    type: Y.BlockTypes.statement,
-    statement: ["Another", "statement", "split", "into", "blocks"]
-  },
-  {
-    type: Y.BlockTypes.statement,
-    statement: ["Here's --> ",
-      {
-        type: "reporter",
-        name: "input"
-      },
-      "<-- an input"]
-  },
-  {
-    type: Y.BlockTypes.reporter,
-    statement: ["simple expression"]
-  }
+    {
+      type: Y.BlockTypes.statement,
+      statement: ["A simple statement"]
+    },
+    {
+      type: Y.BlockTypes.statement,
+      statement: ["Another", "statement", "split", "into", "blocks"]
+    },
+    {
+      type: Y.BlockTypes.statement,
+      statement: ["Here's --> ",
+        {
+          type: "reporter",
+          name: "input"
+        },
+        "<-- an input"]
+    },
+    {
+      type: Y.BlockTypes.reporter,
+      statement: ["simple expression"]
+    },
+    {
+      type: Y.BlockTypes.statement,
+      statement: ["Forever",
+        {
+          type: "cShape",
+          name: "input"
+        }
+      ]
+    },
+    {
+      type: Y.BlockTypes.statement,
+      statement: ["If",
+        {
+          type: "reporter",
+          name: "predicate"
+        },
+        {
+          type: "cShape",
+          name: "ifstatement"
+        },
+        "else",
+        {
+          type: "cShape",
+          name: "elsestatement"
+        }
+      ]
+    },
+    {
+      type: Y.BlockTypes.statement,
+      statement: ["Testing repeat",
+        {
+          type: "repeat",
+          name: "testingRepeat",
+          size: 1,
+          subBlocks: [
+            "sub block"
+          ]
+        }
+      ]
+    }
   ]
 
   var node = Y.one("#testContainer");
-  Y.each(blockDefinitions, function(bd) {
-    var blockModel = new Y.ExpressionBlockModel({
-      blockDefinition: bd
-    });
-    
-    var testContainer = Y.Node.create('<div class="testBlkContainer"></div>');
-    node.append(testContainer);
-    var blockRender = Y.BlockRender({
-      model: blockModel,
-      parent: testContainer
-    });
-    
-    blockRender.render();
-  });
   
+  window.setTimeout(function() {
+    Y.each(blockDefinitions, function(bd) {
+      var blockModel = new Y.ExpressionBlockModel({
+        blockDefinition: bd
+      });
+      
+      var testContainer = Y.Node.create('<div class="testBlkContainer"></div>');
+      node.append(testContainer);
+      var blockRender = Y.BlockRender({
+        model: blockModel,
+        parent: testContainer
+      });
+      
+      blockRender.render();
+    });
+    }, 100);
 });
 </script>
 </body>

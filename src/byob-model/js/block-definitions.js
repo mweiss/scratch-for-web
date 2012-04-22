@@ -34,6 +34,7 @@ var CORE_BLOCK_DEFINITIONS = {
     {
       statement: ["switch",
         {
+          name: "exprAndCaseStmt",
           type: "repeat",
           subBlocks: ["case",
           {

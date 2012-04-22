@@ -1,7 +1,11 @@
 /*global Y*/
-var ExpressionBlockRender, DEFAULT_FILL_COLORS = {}, INLINE_BLOCK_VERTICAL_PADDING = 12;
+var ExpressionBlockRender, 
+    DEFAULT_FILL_COLORS = {}, 
+    INLINE_BLOCK_VERTICAL_PADDING_WITH_CONNECTORS = 12,
+    INLINE_BLOCK_VERTICAL_PADDING_WITHOUT_CONNECTORS = 6,
+    INLINE_BLOCK_HORIZONTAL_PADDING = 6;
 
-ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
+ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender, [], {
   
   // Properties
   fill: null,
@@ -31,6 +35,10 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
   initializer: function(cfg) {
     this.fill = cfg.fill || this._defaultFill();
     this.stroke = cfg.stroke || this._defaultStroke();
+    
+    if (cfg.model) {
+      cfg.model.on("render", this.render, this);
+    }
   },
   
   _preRender: function(container) {
@@ -64,7 +72,8 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
           }
           renderables.push({
             type: "repeat",
-            size: size
+            size: size,
+            name: ele.name
           });
         }
         else {
@@ -79,13 +88,19 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
       }
     };
     
-    Y.each(statement, addToRenderables, this);
+    Y.each(statement, function(ele) {
+      addToRenderables.call(this, ele);
+    }, this);
     
     return renderables;
   },
   
-  _renderRepeat: function(size, container) {
-    // TODO: Implement me!
+  _renderRepeat: function(renderable, parent) {
+    var blockRender = Y.BlockRender(Y.mix(renderable, {
+      parent: parent,
+      parentBlock: this.get("model")
+    }));
+    this._postRenderBlock(blockRender, renderable);
   },
   
   _renderText: function(renderable, container) {
@@ -95,6 +110,14 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
     renderable.container = container.one("#" + id); 
   },
   
+  _postRenderBlock: function(blockRender, renderable) {
+    var container;
+    blockRender.render();
+    container = blockRender.get("container");
+    container.addClass("blkIpe");
+    renderable.container = container;
+  },
+  
   _renderBlock: function(renderable, parent) {
     var blockRender = Y.BlockRender({
           model: renderable.model,
@@ -102,18 +125,16 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
         }),
         container;
     
-    blockRender.render();
-    container = blockRender.get("container");
-    container.addClass("blkIpe");
-    renderable.container = container;
+    this._postRenderBlock(blockRender, renderable);
   },
   
   _renderCShape: function(renderable, parent) {
-    var emptyBlockList = new Y.BlockListRender({
+    var bl = new Y.BlockListRender({
       parent: parent,
       model: renderable.model
     });
-    renderable.container = emptyBlockList.get("container");
+    renderable.container = bl.get("container");
+    bl.render();
   },
   
   _renderBody: function(model, container) {
@@ -168,11 +189,12 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
       var rContainer = renderable.container,
           region = rContainer.get("region");
       if (rContainer.hasClass("blkIpe")) {
-        maxInlineHeight = Math.max(maxInlineHeight, region.height + INLINE_BLOCK_VERTICAL_PADDING);
-        aggregatedInlineWidth += region.width;
+        maxInlineHeight = Math.max(maxInlineHeight, region.height + this._getInlineBlockVerticalPadding(model));
+        aggregatedInlineWidth += region.width + INLINE_BLOCK_HORIZONTAL_PADDING;
         inlineBlksToCenter.push(rContainer);
       }
       else {
+        rContainer.setStyle("marginTop", maxInlineHeight);
         updateBodyInfo();
         blockDims.push(region);
         // TODO: I may have to do some centering here with inline blocks,
@@ -186,6 +208,18 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
     this._blockDims = blockDims;
   },
   
+  /**
+   * Returns the vertical padding for this type of block.
+   */
+  _getInlineBlockVerticalPadding: function(model) {
+    if (model.get("blockDefinition").type.allowsTopBlocks || model.get("blockDefinition").type.allowsBottomBlocks) {
+      return INLINE_BLOCK_VERTICAL_PADDING_WITH_CONNECTORS;
+    }
+    else {
+      return INLINE_BLOCK_VERTICAL_PADDING_WITHOUT_CONNECTORS;
+    }
+  },
+  
   render: function() {
     // Render each block segment.  For each element in the block definition, create an element
     // or sub corresponding sub render.  One thing I need to figure out is how to deal with inline functions
@@ -196,6 +230,7 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
     
     // Clear out anything that may have been in the container
     container.setContent('');
+    container.setStyle("width", "");
     if (!container.inDoc() && parent) {
       parent.append(container);
     }
@@ -203,14 +238,14 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
     // Render the background
     this._preRender(container);
     this._renderBody(model, container);
-    this._renderBackground(model);
+    this._renderBackground(model, container);
     
     // Explicitely set the widths of this block, since some browsers
     // have trouble correctly calculating inline block widths without this
     container.setStyle("width", container.get("region").width + 2);
   },
   
-  _renderBackground: function(model) {
+  _renderBackground: function(model, container) {
     var getHeightFunc = function(val) {
           return val.height;
         },
@@ -239,15 +274,13 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.View, [], {
       showTopConnector : blockDefinition.type.allowsTopBlocks,
       showBottomConnector : blockDefinition.type.allowsBottomBlocks
     });
+    
+    if (totalHeight > container.get("region").height) {
+      container.setStyle("height", totalHeight);
+    }
   }
 }, {
   ATTRS: {
-    // TODO: These will most likely be common attributes to the base block render when implemented
-    parent: {
-      value: null 
-    }
-    
-    // These are attributes that will most likely be unique to expression block render
   }
 });
 

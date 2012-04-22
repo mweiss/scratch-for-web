@@ -8,7 +8,11 @@
   "sourceFiles" : [
     "block-shapes.js",
     "ignore-offset-drop.js",
+    "base-block-render.js",
+    "block-list-render.js",
+    "repeat-block-render.js",
     "expression-block-render.js",
+    "empty-expression-block-render.js",
     "block-render.js"
   ],
   "buildDir"  : "../../build/byob-render",

@@ -39,8 +39,8 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
    * Returns the default input block for the given type.
    */
   _getDefaultInputBlock: function(type) {
-    switch (type.name) {
-      case "expression":
+    switch (type) {
+      case "reporter":
       case "statement":
         return new ExpressionBlockModel({blockDefinition: {
           type: type,
@@ -180,6 +180,30 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
     
     this.fire('inputBlocksChange');
     return oldBlock;
+  },
+  
+  incrRepeat: function(name) {
+    this._modifyRepeat(name, 1);
+  },
+  
+  _modifyRepeat: function(name, val) {
+    var def = this._findDefByName(name);
+    if (def && Y.Lang.isNumber(def.size)) {
+      def.size += val;
+    }
+    this._refreshDefaultInputBlocks();
+  },
+  
+  _findDefByName: function(name) {
+    return Y.Array.find(this.get("blockDefinition").statement, function(def) {
+      if (def.name === name) {
+        return true;
+      }
+    });    
+  },
+  
+  decrRepeat: function(name) {
+    this._modifyRepeat(name, -1);  
   },
   
   /**

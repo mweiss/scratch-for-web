@@ -6,8 +6,18 @@ div.blkExpr {
   text-shadow: black 1px 1px 1px;
 }
 
-
 div.blkExpr div.blkIpe {
   float: left;
-  padding: 0px 3px 0px 3px;
+  margin: 0px 3px 0px 3px;
 }
+
+div.blkExpr div.leftArrow {
+  float: left;
+  display: inline-block;
+}
+
+div.blkExpr div.rightArrow {
+  float: left;
+  display: inline-block;
+}
+
