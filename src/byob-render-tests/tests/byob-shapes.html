@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>scratch-block-model tests</title>
+<link rel="stylesheet" type="text/css" href="../../../../yui3/build/cssreset/cssreset-min.css">
+<link rel="stylesheet" type="text/css" href="../../../../yui3/build/cssgrids/grids-min.css">
+
+<script type="text/javascript" src="../../../../yui3/build/yui/yui-debug.js"></script>
+<script type="text/javascript" src="../../../build/scratch-for-web-loader/scratch-for-web-loader.js"></script>
+<style type="text/css">
+  #testContainer {
+    width: 600px;
+    height: 400px;
+  }
+</style>
+</head>
+<body class="yui3-skin-sam">
+<h1>byob-shapes Tests</h1>
+<div id="testContainer"></div>
+<script type="text/javascript">
+YUI({
+  filter : 'raw'
+}).use("byob-render", function(Y) {
+  var graphic = new Y.Graphic({
+    render : Y.one("#testContainer")
+  });
+  graphic.addShape({
+    type: Y.ExpressionBlockShape,
+    width: 100,
+    height: 130,
+    x: 0,
+    y: 0,
+    fill : {
+      color: "#c93212"
+    },
+    blockHeights: [20, 30, 20],
+    cShapeHeights: [20, 40],
+    showTopConnector : true,
+    showBottomConnector : true
+  });
+});
+</script>
+</body>
+</html>

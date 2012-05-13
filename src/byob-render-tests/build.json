@@ -1,0 +1,25 @@
+{
+  "name"    : "byob-render-tests",
+  "description" : "This module contains common test utilities for the byob render module",
+  "type"    : "js",
+  "version" : "1.0.0",
+  "skip"    : ["template", "jslint", "csslint", "jshint"],
+  "sourceDir"   : "js",
+  "sourceFiles" : [
+    "test-block-definitions.js"
+  ],
+  "buildDir"  : "../../build/byob-render-tests",
+  "assetsDir" : "assets",
+  "details" : {
+      "requires"   : ["byob-render"],
+      "optional"   : [],
+      "supersedes" : [],
+      "after"      : [],
+      "after_map"  : {},
+      "skinnable"  : false,
+      "submodules" : {},
+      "group"      : "",
+      "lang"       : [],
+      "use"        : null
+  }
+}
