@@ -86,7 +86,7 @@ YUI().use(function(Y) {\n\
 	var CONFIG = {\n\
 		groups: {\n\
 			'clicrdv': {\n\
-				base: '/Users/michaelweiss/Programs/scratch-for-web/build/',\n\
+				base: '../../../build/',\n\
 				combine: false,\n\
 				modules: "+JSON.stringify(meta_properties)+"\n\
 			}\n\

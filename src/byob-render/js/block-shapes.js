@@ -53,7 +53,7 @@ ExpressionBlockShape = Y.Base.create("expressionBlockShape", Y.Shape, [], {
       this.lineTo(leftConnectorWidth + ew, h);
       
       // Top of the cShape
-      this.quadraticCurveTo(leftConnectorWidth, h, leftConnectorWidth, h, - eh);
+      this.quadraticCurveTo(leftConnectorWidth, h, leftConnectorWidth, h - eh);
       this.lineTo(leftConnectorWidth, tcsHeight + eh);
       this.quadraticCurveTo(leftConnectorWidth, tcsHeight, leftConnectorWidth + ew, tcsHeight);
       this.lineTo(leftConnectorWidth + connectorIndent, tcsHeight);

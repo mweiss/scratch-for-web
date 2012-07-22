@@ -62,12 +62,29 @@ BaseRenderableModel = Y.Base.create("baseRenderableModel", Y.Model, [], {
    */
   handleRender : function() {
     var parent = this.get('parent');
-    if (parent) {
+    if (parent && parent.type && !parent.type.isCanvas) {
       parent.handleRender();
     }
     else {
       this.fire('render');
     }
+  },
+  
+  /**
+   * Returns the parent canvas associated with this model.
+   */
+  getBlockCanvas: function() {
+    var parent;
+    if (this.type && this.type.isCanvas) {
+      return this;
+    }
+    else {
+      parent = this.get('parent');
+      if (parent) {
+        return parent.getBlockCanvas();
+      }
+    }
+    return null;
   },
   
   /**
@@ -84,7 +101,8 @@ BaseRenderableModel = Y.Base.create("baseRenderableModel", Y.Model, [], {
    */
   isValidDropTarget : function(dragTarget) {
     // By default nothing is a valid drop target.
-    return false;
+    // TODO: change back to false
+    return true;
   }
 },{
   ATTRS: {

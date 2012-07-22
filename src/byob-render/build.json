@@ -13,7 +13,8 @@
     "repeat-block-render.js",
     "expression-block-render.js",
     "empty-expression-block-render.js",
-    "block-render.js"
+    "block-render.js",
+    "block-canvas-view.js"
   ],
   "buildDir"  : "../../build/byob-render",
   "assetsDir" : "assets",

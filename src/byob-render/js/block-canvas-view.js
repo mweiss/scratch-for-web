@@ -16,6 +16,7 @@ BlockCanvasView = Y.Base.create('blockCanvasView', Y.View, [], {
         container = this.get("container");
     
     container.setStyle("position", "relative");
+    container.addClass("blockCv");
     Y.each(blockLists, this._renderBlockList, this);
   },
   

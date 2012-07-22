@@ -1,7 +1,7 @@
 #!/bin/bash -e
 . $HOME/.bash_profile
 node scratch-for-web-loader/meta_join.ssjs
-$YBUILD scratch-block-model scratch-block-render byob-model byob-render
+$YBUILD scratch-block-model scratch-block-render byob-model byob-render byob-render-tests
 mkdir -p ../build/scratch-for-web-loader
 # Also dumb as hell
 rm -Rf ../build/byob-render/assets

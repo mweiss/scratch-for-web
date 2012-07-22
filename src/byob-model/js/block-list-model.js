@@ -17,8 +17,6 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
    */
   copy: function(parent) {
     var copy = new BlockListModel({
-          x: this.get('x'),
-          y: this.get('y'),
           parent: this.get('parent')
         }), 
         srcBlocks = this.get('blocks'),
@@ -51,38 +49,20 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
       
       this.set('blocks', newBlocks);
       
-      if (newBlocks.size() === 0 && !this.isInline()) {
-        this.destroy();
-      }
+      // TODO: at what point to we destroy the block list?
+      // if (newBlocks.size() === 0) {
+      //  this.destroy();
+      // }
       
       splitBlockList = new BlockListModel({
         blocks : splitBlocks
       });
     }
     return splitBlockList;
-  },
-  
-  /**
-   * I am a method which returns true if I am a block list that is nested within another block,
-   * or false if I am a top level block list.
-   */
-  isInline: function() {
-    return this.get('parent') !== null;
   }
+  
 }, {
   ATTRS: {
-    /**
-     * The x coordinate of this block list.  This attribute only matters if parent is null.
-     */
-    x: {
-      value : 0
-    },
-    /**
-     * The y coordinate of this block list.  This attribute only matters if parent is null.
-     */
-    y: {
-      value : 0
-    },
     /**
      * A model list of blocks.  This value should never be null.
      */

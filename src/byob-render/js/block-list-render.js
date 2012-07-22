@@ -11,12 +11,13 @@ BlockListRender = Y.Base.create("baseBlockRender", Y.BaseBlockRender, [], {
     var blockList = this.get("model"),
         container = this.get("container"),
         blocks = blockList.get('blocks'),
-        isInline = blockList.isInline();
+        x = this.get("x"),
+        y = this.get("y");
     
     // Set this block list's position on the stage if it's not part of another block.
-    if (!isInline) {
-      container.setStyle('left', blockList.get('x'));
-      container.setStyle('top', blockList.get('y'));
+    if (Y.Lang.isNumber(x) && Y.Lang.isNumber(y)) {
+      container.setStyle('left', x);
+      container.setStyle('top', y);
       container.setStyle('position', 'absolute');
     }
     
@@ -46,7 +47,7 @@ BlockListRender = Y.Base.create("baseBlockRender", Y.BaseBlockRender, [], {
     }, this);
     
     // Default the height if ther are no blocks in the block list and we're an inline block
-    if (blocks.size() === 0 && isInline) {
+    if (blocks.size() === 0) {
       container.setStyle('height', '15px');
     }
   },
@@ -61,6 +62,15 @@ BlockListRender = Y.Base.create("baseBlockRender", Y.BaseBlockRender, [], {
     this.get("container").setContent('');
   }
 }, {
+  ATTRS : {
+    x : {
+      value : null
+    },
+    
+    y : {
+      value : null
+    }
+  }
 });
 
 Y.BlockListRender = BlockListRender;

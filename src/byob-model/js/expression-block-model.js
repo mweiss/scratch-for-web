@@ -71,14 +71,14 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
           size = ele.size;
           Y.each(ele.subBlocks, function(subBlock) {
             if (Y.Lang.isObject(subBlock)) {
-              if (!defaultInputBlocks[name]) {
-                defaultInputBlocks[name] = [];
+              if (!defaultInputBlocks[subBlock.name]) {
+                defaultInputBlocks[subBlock.name] = [];
               }
-              if (!inputBlocks[name]) {
-                inputBlocks[name] = [];
+              if (!inputBlocks[subBlock.name]) {
+                inputBlocks[subBlock.name] = [];
               }
               for (i = 0; i < size; i += 1) {
-                setInputBlocks.call(this, subBlock, inputIndex);
+                setInputBlocks.call(this, subBlock, i);
               }
             }
           }, this);

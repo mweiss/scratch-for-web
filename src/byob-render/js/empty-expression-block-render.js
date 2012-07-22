@@ -15,7 +15,26 @@ EmptyExpressionBlockRender = Y.Base.create("emptyExpressionBlockRender", Y.Expre
     this.fill = cfg.fill || {
       color: "#ffffff"
     };
+    this.set("isDragTarget", false);
+    this.set("isDropTarget", true);
+  },
+  
+  highlight: function(isTop, dropModel, dragModel) {
+    var container = this.get("container");
+    container.addClass("emptyExpressionHighlight");
+  },
+  
+  unhighlight: function() {
+    var container = this.get("container");
+    container.removeClass("emptyExpressionHighlight");
+  },
+  
+  explicitWidthAdjustment: function(container) {
+    // Explicitely set the widths of this block, since some browsers
+    // have trouble correctly calculating inline block widths without this
+    container.setStyle("width", container.get("region").width);
   }
+  
 }, {
   
 });

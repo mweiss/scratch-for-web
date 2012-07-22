@@ -1,10 +1,10 @@
 /*global Y*/
 var ExpressionBlockRender, 
     DEFAULT_FILL_COLORS = {}, 
-    INLINE_BLOCK_VERTICAL_PADDING_WITH_CONNECTORS = 12,
-    INLINE_BLOCK_VERTICAL_PADDING_WITHOUT_CONNECTORS = 6,
-    INLINE_BLOCK_HORIZONTAL_PADDING = 6;
-
+    INLINE_BLOCK_VERTICAL_PADDING_WITH_CONNECTORS = 18,
+    INLINE_BLOCK_VERTICAL_PADDING_WITHOUT_CONNECTORS = 10,
+    INLINE_BLOCK_HORIZONTAL_PADDING = 10;
+    
 ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender, [], {
   
   // Properties
@@ -18,6 +18,7 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
   _renderables: null,
   _inlineDims: null,
   _blockDims: null,
+  _highlightNode: null,
   
   _defaultFill: function() {
     var model = this.get("model");
@@ -35,10 +36,7 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
   initializer: function(cfg) {
     this.fill = cfg.fill || this._defaultFill();
     this.stroke = cfg.stroke || this._defaultStroke();
-    
-    if (cfg.model) {
-      cfg.model.on("render", this.render, this);
-    }
+    Y.BaseBlockRender.prototype.initializer.call(this, cfg);
   },
   
   _preRender: function(container) {
@@ -67,14 +65,14 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
           applyRenderables = function(subEle) {
             addToRenderables.call(this, subEle, i);
           };
-          for (i = 0; i < size; i += 1) {
-            Y.each(ele.subBlocks, applyRenderables, this);
-          }
           renderables.push({
             type: "repeat",
             size: size,
             name: ele.name
           });
+          for (i = 0; i < size; i += 1) {
+            Y.each(ele.subBlocks, applyRenderables, this);
+          }
         }
         else {
           name = ele.name;
@@ -156,6 +154,7 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
               width: aggregatedInlineWidth
             });
             maxInlineHeight = 0;
+            aggregatedInlineWidth = 0;
             inlineBlksToCenter = [];            
           }
           else {
@@ -239,7 +238,12 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
     this._preRender(container);
     this._renderBody(model, container);
     this._renderBackground(model, container);
+    this._plugDragDrop(container);
     
+    this.explicitWidthAdjustment(container);
+  },
+  
+  explicitWidthAdjustment: function(container) {
     // Explicitely set the widths of this block, since some browsers
     // have trouble correctly calculating inline block widths without this
     container.setStyle("width", container.get("region").width + 2);
@@ -258,7 +262,9 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
         inlineHeights = Y.Array.map(this._inlineDims, getHeightFunc),
         blockHeights = Y.Array.map(this._blockDims, getHeightFunc),
         totalHeight = Y.Array.reduce(inlineHeights, 0, addFunc) + Y.Array.reduce(blockHeights, 0, addFunc),
-        maxWidth = Y.Array.reduce(this._inlineDims, 0, widthMaxFunc),
+        maxWidth = Y.Array.reduce(this._inlineDims,
+          0,
+          widthMaxFunc),
         blockDefinition = model.get("blockDefinition");
     
     this._bgGraphic.addShape({
@@ -278,9 +284,123 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
     if (totalHeight > container.get("region").height) {
       container.setStyle("height", totalHeight);
     }
+  },
+  
+  _plugDragDrop: function(container) {
+    // If this is a drag target, then we should add the drag plug in
+    if (this.get('isDragTarget')) {
+      this._plugDrag(container);
+    }
+    
+    // If this is a drop target, then we should add the drop plug in
+    if (this.get('isDropTarget')) {
+      this._plugDrop(container);
+    }
+  },
+ 
+ /**
+  * Adds the drag plugin to the container for this expression, and adds the
+  * appropriate event listeners on the plugin.
+  */ 
+  _plugDrag: function(container) {
+    container.plug(Y.Plugin.Drag, { dragMode: 'point' });
+    container.dd.on('drag:start', this._onDragStart, this);
+  },
+  
+  _plugDrop: function(container, model) {
+    container.plug(Y.IgnoreOffsetDrop, {
+      block: model
+    });
+
+    container.drop.on('drop:over', this._onDropEnter, this);
+    container.drop.on('drop:enter', this._onDropEnter, this);
+    container.drop.on('drop:exit', this._onDropExit, this);
+  },
+  
+  /**
+   * I am a helper method which returns the first ancestor which is a canvas
+   * container.
+   */
+  _getCanvasContainer: function() {
+    return this.get('container').ancestor(function(node) {
+      return node.hasClass("blockCv");
+    });
+  },
+  
+  /**
+   * Event listener for dragging this expression.
+   */
+  _onDragStart: function(e) {
+     var drag = e.currentTarget;
+     drag.render = this;
+     drag.model = this.get("model");
+  },
+
+  _onDropEnter: function(e) {
+    var drop = e.drop, drag = e.drag, dropModel, dragModel;
+    drop.render = this;
+    drop.model = this.get("model");
+    dropModel = drop.model;
+    dragModel = drag.model;
+    if (dragModel && dropModel.isValidDropTarget(dragModel)) {
+      this.highlight(this._isDragTop(drag, drop), dropModel, dragModel);
+    }
+  },
+  
+  highlight: function(isTop, dropModel, dragModel) {
+    var container = this.get("container"),
+        region = container.get("region"),
+        x, y;
+    this.unhighlight();
+    
+    this._highlightNode = Y.Node.create('<div class="highlightEle"></div>');
+    Y.one("body").append(this._highlightNode);
+    if (isTop) {
+      x = region.left;
+      y = region.top;
+    }
+    else {
+      x = region.left;
+      y = region.bottom;
+    }
+    this._highlightNode.setXY([x, y]);
+  },
+  
+  unhighlight: function() {
+    if (this._highlightNode) {
+      this._highlightNode.remove();
+      this._highlightNode = null;
+    }
+  },
+  
+   /**
+   * Returns true if the mouse position is closer to the top of this block then the bottom
+   * of it.
+   */
+  _isDragTop : function(drag, drop) {
+    var dropTop = drop.region.top,
+        dropBottom = drop.region.bottom,
+        mouseY = drag.mouseXY[1];
+    
+    return Math.abs(mouseY - dropTop) < Math.abs(mouseY - dropBottom);
+  },
+  
+  _onDropExit: function(e) {
+    this.unhighlight();
   }
 }, {
   ATTRS: {
+    isCopyOnDrag : {
+      value: false
+    },
+    
+    isDragTarget : {
+      value: true 
+    },
+    
+    isDropTarget : {
+      value: true
+    }
   }
 });
 

@@ -10,7 +10,8 @@
     "block-definitions.js",
     "base-renderable-model.js",
     "expression-block-model.js",
-    "block-list-model.js"
+    "block-list-model.js",
+    "block-canvas-model.js"
   ],
   "buildDir"  : "../../build/byob-model",
   "details" : {
