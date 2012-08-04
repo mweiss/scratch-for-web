@@ -26,7 +26,12 @@ Type.prototype = {
   allowsTopBlocks: false,
   allowsBottomBlocks: false,
   returnsValue: false,
-  isBlockList: false
+  isBlockList: false,
+  isCanvas: false,
+  canConnect: function(type) {
+    return type.allowsTopBlocks && this.allowsBottomBlocks ||
+    type.allowsBottomBlocks && this.allowsTopBlocks;
+  }
 };
 
 /**
@@ -49,6 +54,9 @@ Types = {
   }),
   blockList: new Type({
     isBlockList: true
+  }),
+  canvas: new Type({
+    isCanvas: true
   })
 };
 

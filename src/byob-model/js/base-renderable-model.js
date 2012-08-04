@@ -62,7 +62,7 @@ BaseRenderableModel = Y.Base.create("baseRenderableModel", Y.Model, [], {
    */
   handleRender : function() {
     var parent = this.get('parent');
-    if (parent && parent.type && !parent.type.isCanvas) {
+    if (parent && parent.type && parent.type !== "canvas") {
       parent.handleRender();
     }
     else {
@@ -75,7 +75,7 @@ BaseRenderableModel = Y.Base.create("baseRenderableModel", Y.Model, [], {
    */
   getBlockCanvas: function() {
     var parent;
-    if (this.type && this.type.isCanvas) {
+    if (this.type === "canvas") {
       return this;
     }
     else {
@@ -97,12 +97,14 @@ BaseRenderableModel = Y.Base.create("baseRenderableModel", Y.Model, [], {
   
   /**
    * Returns true if it's okay to consider this renderable model a drop target for the given drag target.
-   * Drag target is also a BaseRenderableModel.
+   * Drag target is a BlockListModel.
    */
   isValidDropTarget : function(dragTarget) {
-    // By default nothing is a valid drop target.
-    // TODO: change back to false
-    return true;
+    return false;
+  },
+  
+  destroy: function() {
+    this.fire("destroy");
   }
 },{
   ATTRS: {

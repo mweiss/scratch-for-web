@@ -24,7 +24,8 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
     
     dstBlocks.add(srcBlocks.map(function(src) {
       return src.copy(copy);
-    }));
+    })); 
+    copy.set("blocks", dstBlocks);
     return copy;
   },
   
@@ -49,16 +50,71 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
       
       this.set('blocks', newBlocks);
       
-      // TODO: at what point to we destroy the block list?
-      // if (newBlocks.size() === 0) {
-      //  this.destroy();
-      // }
+      if (newBlocks.size() === 0) {
+        this.destroy();
+      }
+      else {
+        this.handleRender();
+      }
       
       splitBlockList = new BlockListModel({
         blocks : splitBlocks
       });
     }
     return splitBlockList;
+  },
+  
+  /**
+   * Inserts the given block list before or after the block specified.  If we
+   * cannot find the block in the block list, we insert the block list to add at the
+   * beginning of this block list.
+   */
+  insertBlockList: function(blockListToAdd, block, insertBefore) {
+    var selfBlocks = this.get('blocks'),
+        selfBlockIndex = selfBlocks.indexOf(block),
+        i, 
+        newBlocks = new Y.ModelList(),
+        inserted = false, shouldInsert = false,
+        addToNewBlocks = function() {
+          var blks = blockListToAdd.get('blocks');
+          blks.each(function(blk) {
+            newBlocks.add(blk);
+          });
+          inserted = true;
+        };
+    
+    // If we can't find the block in the block list, then we
+    if (selfBlockIndex === -1) {
+      selfBlockIndex = 0;
+      insertBefore = true;
+    }
+        
+    for (i = 0; i < selfBlocks.size(); i += 1) {
+      shouldInsert = selfBlockIndex === i;
+      if (insertBefore && shouldInsert) {
+        addToNewBlocks();
+      }
+      newBlocks.add(selfBlocks.item(i));
+      if (!insertBefore && shouldInsert) {
+        addToNewBlocks();
+      }
+    }
+    
+    if (!inserted) {
+      addToNewBlocks();
+    }
+    
+    this.set('blocks', newBlocks);
+    blockListToAdd.set('blocks', new Y.ModelList());
+    blockListToAdd.destroy();
+  },
+  
+  /**
+   * I am a method which returns a block list returned after calling splitBlockList, or null if
+   * this block was not in the block list.
+   */
+  detach: function(model) {
+    return this.splitBlockList(model) || null;
   }
   
 }, {

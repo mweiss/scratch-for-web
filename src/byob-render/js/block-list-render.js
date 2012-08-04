@@ -52,11 +52,15 @@ BlockListRender = Y.Base.create("baseBlockRender", Y.BaseBlockRender, [], {
     }
   },
   
+  destroy: function() {
+    this._clearContents();
+    BlockListRender.superclass.destroy.apply(this);
+  },
+  
   _clearContents: function() {
     if (this._currentBlockRenders) {
       Y.Array.each(this._currentBlockRenders, function(blockRender) {
-        var container = blockRender.get("container");
-        container.remove();
+        blockRender.destroy();
       });
     }
     this.get("container").setContent('');
@@ -69,6 +73,14 @@ BlockListRender = Y.Base.create("baseBlockRender", Y.BaseBlockRender, [], {
     
     y : {
       value : null
+    },
+    
+    isDragTarget : {
+      value: true 
+    },
+    
+    isDropTarget : {
+      value: true
     }
   }
 });

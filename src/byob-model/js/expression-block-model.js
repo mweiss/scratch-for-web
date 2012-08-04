@@ -43,10 +43,11 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
       case "reporter":
       case "statement":
         return new ExpressionBlockModel({blockDefinition: {
-          type: type,
-          parent: this,
+          type: Y.BlockTypes[type],
           statement: []
-        }});
+        },
+        parent: this
+        });
       case "cShape":
         return new Y.BlockListModel({ parent: this });
       default:
@@ -106,6 +107,23 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
     }, this);
   },
   
+  replaceBlock: function(blockToReplace, blockToAdd) {
+    var removed = this.removeInputBlock(blockToReplace), key, index, inputBlocks;
+    if (removed) {
+      key = removed.key;
+      index = removed.index;
+      inputBlocks = this.get("inputBlocks");
+      if (index !== -1) {
+        inputBlocks[key][index] = blockToAdd;
+      }
+      else {
+        inputBlocks[key] = blockToAdd;
+      }
+      blockToAdd.set("parent", this);
+    }
+    return removed;
+  },
+  
   /**
    * I am a method which returns a deep copy of myself and any child input or default input blocks.
    */
@@ -136,7 +154,7 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
             dstBlocks[inputName] = Y.Lang.isArray(src) ? Y.Array.map(src, copyBlock, this) : copyBlock(src);
           }, this);
         };
-
+     
     copyInputBlocks(this.get("inputBlocks"), copy.get("inputBlocks"));
     copyInputBlocks(this.defaultInputBlocks, copy.defaultInputBlocks);
     return copy;
@@ -148,9 +166,16 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
    */
   _isDefaultBlock: function(block) {
     var found = false;
-    Y.each(this.defaultInputBlocks, function(value) {
-      found = found || value === block;
-    });
+    var isDefaultBlock = function(value) {
+      if (Y.Lang.isArray(value)) {
+        found = Y.each(value, isDefaultBlock);
+      }
+      else {
+        found = found || value === block;
+      }
+    };
+    
+    Y.each(this.defaultInputBlocks, isDefaultBlock);
     return found;
   },
   
@@ -214,11 +239,14 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
   removeInputBlock : function(block) {
     var inputBlocks = this.get('inputBlocks'), 
         success = false,
+        skey,
+        sindex = -1,
         removeBlock = function() {
           if (!this._isDefaultBlock(block)) {
             block.set('parent', null);
           }
           this.fire('inputBlocksChange');
+          success = true;
         };
     
     Y.each(inputBlocks, function(value, key) {
@@ -226,17 +254,70 @@ ExpressionBlockModel = Y.Base.create("expressionBlockModel", BaseRenderableModel
       if (Y.Lang.isArray(value)) {
         index = Y.Array.indexOf(value, block);
         if (index !== -1) {
-          value[index] = this.defaultInputBlocks[key];
-          removeBlock();
+          value[index] = this.defaultInputBlocks[key][index];
+          removeBlock.call(this);
+          sindex = index;
+          skey = key;
         }
       }
       else if (value === block) {
         inputBlocks[key] = this.defaultInputBlocks[key];
-        removeBlock();
+        removeBlock.call(this);
+        skey = key;
       }
     }, this);
     
-    return block;
+    return success ? {block: block, key: skey, index: sindex} : null;
+  },
+  
+  /**
+   * Overrides the default isValidDropTarget method.
+   */
+  isValidDropTarget: function(dragTarget) {
+    var parent = this.get('parent'),
+        dropType = this.get("blockDefinition").type,
+        hasBlockParent = parent && parent.type !== "blockList" && parent.type !== "canvas",
+        blocks, firstBlock, lastBlock, firstBlockDef, lastBlockDef;
+    
+    if (dragTarget.type !== "blockList") {
+      return false;
+    }
+    else if (dropType.name === Y.BlockTypes.reporter.name) {
+      return hasBlockParent && dragTarget.get("blocks").item(0).get("blockDefinition").type.name === Y.BlockTypes.reporter.name;
+    }
+    else if (dropType) {
+      blocks = dragTarget.get("blocks");
+      firstBlock = blocks.item(0);
+      lastBlock = blocks.item(blocks.size() - 1);
+      firstBlockDef = firstBlock.get("blockDefinition");
+      lastBlockDef = lastBlock.get("blockDefinition");
+      
+      return (firstBlockDef.type.allowsTopBlocks && dropType.allowsBottomBlocks) ||
+             (dropType.allowsTopBlocks && lastBlockDef.allowsBottomBlocks);
+    }
+    else {
+      return false;
+    }
+  },
+  
+  /**
+   * I am a method which removes the given model from the inputs and returns the model we've removed as a block list.
+   * If nothing was removed, I return null.
+   */
+  detach: function(model) {
+    var removed = this.removeInputBlock(model), modelList, blockModelList = null;
+    
+    if (removed) {
+      modelList = new Y.ModelList();
+      modelList.add(removed.block);
+      
+      blockModelList = new Y.BlockListModel({
+        blocks: modelList
+      });
+      this.handleRender();
+    }
+    
+    return blockModelList;
   }
 },{
   ATTRS: {

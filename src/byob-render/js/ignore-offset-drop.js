@@ -4,6 +4,10 @@
  */
 var IgnoreOffsetDrop = function(config) {
   config.node = config.host;
+  
+  // For some reason, the shim value swaps from true to false regularly.  We'll always set it to false
+  // because it's deprecated.
+  config.useShim = false;
   this.block = config.block;
   IgnoreOffsetDrop.superclass.constructor.apply(this, arguments);
 };
@@ -61,7 +65,6 @@ Y.extend(IgnoreOffsetDrop, Y.Plugin.Drop, {
       Y.later(100, this, this.sizeShim);
       return false;
     }
-    this.region = this.get('node').get('region');
   }
 }, {
   NAME : "ignore-offset-drop-plugin",

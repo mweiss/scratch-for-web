@@ -11,7 +11,7 @@ YUI().use(function(Y) {
 			'clicrdv': {
 				base: '../../../build/',
 				combine: false,
-				modules: {"byob-model":{"path":"byob-model/byob-model.js","requires":["base","intl","model","model-list","node-screen"]},"byob-render-tests":{"path":"byob-render-tests/byob-render-tests.js","requires":["byob-render"]},"byob-render":{"path":"byob-render/byob-render.js","requires":["base","view","byob-model","dd-plugin","dd-drop-plugin","graphics","substitute","escape","tabview"],"skinnable":true},"scratch-block-model":{"path":"scratch-block-model/scratch-block-model.js","requires":["widget","intl","model","model-list","node-screen"],"skinnable":true},"scratch-block-render":{"path":"scratch-block-render/scratch-block-render.js","requires":["base","view","scratch-block-model","dd-plugin","dd-drop-plugin","graphics","substitute","escape","tabview"],"skinnable":true}}
+				modules: {"byob-model":{"path":"byob-model/byob-model.js","requires":["base","intl","model","model-list","node-screen"]},"byob-render":{"path":"byob-render/byob-render.js","requires":["base","view","byob-model","dd-plugin","dd-drop-plugin","graphics","substitute","escape","tabview"],"skinnable":true},"byob-render-tests":{"path":"byob-render-tests/byob-render-tests.js","requires":["byob-render"]},"scratch-block-model":{"path":"scratch-block-model/scratch-block-model.js","requires":["widget","intl","model","model-list","node-screen"],"skinnable":true},"scratch-block-render":{"path":"scratch-block-render/scratch-block-render.js","requires":["base","view","scratch-block-model","dd-plugin","dd-drop-plugin","graphics","substitute","escape","tabview"],"skinnable":true}}
 			}
 		}
 	};
