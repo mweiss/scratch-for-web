@@ -15,8 +15,8 @@ EmptyExpressionBlockRender = Y.Base.create("emptyExpressionBlockRender", Y.Expre
     this.fill = cfg.fill || {
       color: "#ffffff"
     };
-    this.set("isDragTarget", false);
-    this.set("isDropTarget", true);
+    this.set("useDrag", false);
+    this.set("useDrop", true);
   },
   
   highlight: function(isTop, dropModel, dragModel) {

@@ -22,6 +22,14 @@ div.blkExpr div.rightArrow {
   display: inline-block;
 }
 
+div.blockWrapper {
+  margin-top: -5px;
+}
+
+div.blockWrapper.firstWrapper {
+  margin-top: 0px;
+}
+
 div.blockWrapper > div.blkExpr {
   padding-left: 3px;
 }

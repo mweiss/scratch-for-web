@@ -9,6 +9,7 @@ BlockListRender = Y.Base.create("baseBlockRender", Y.BaseBlockRender, [], {
   
   render: function() {
     var blockList = this.get("model"),
+        modelParent = blockList.get("parent"),
         container = this.get("container"),
         blocks = blockList.get('blocks'),
         x = this.get("x"),
@@ -34,10 +35,17 @@ BlockListRender = Y.Base.create("baseBlockRender", Y.BaseBlockRender, [], {
       var blockWrapper = Y.Node.create('<div class="blockWrapper"></div>'), 
           region,
           graphicsBlock;
+      
+      // For the first block, we want to style the margin differently from subsequent blocks.
+      if (this._currentBlockRenders.length === 0) {
+        blockWrapper.addClass("firstWrapper");
+      }
       container.append(blockWrapper);
       graphicsBlock = Y.BlockRender({
         model : block,
-        parent : blockWrapper
+        parent : blockWrapper,
+        useDrag : this.get("useDrag"),
+        useDrop : this.get("useDrop")
       });
       graphicsBlock.render();
       region = graphicsBlock.get("container").get('region');
@@ -46,12 +54,29 @@ BlockListRender = Y.Base.create("baseBlockRender", Y.BaseBlockRender, [], {
       this._currentBlockRenders.push(graphicsBlock);
     }, this);
     
-    // Default the height if ther are no blocks in the block list and we're an inline block
+    // Default the height if there are no blocks in the block list and we're an inline block
     if (blocks.size() === 0) {
-      container.setStyle('height', '15px');
+      container.setStyle('height', '20px');
+      if (this.get("useDrop")) {
+        this._plugDrop(container);
+      }
     }
+    else if (container.drop) {
+      container.drop.destroy();
+    }
+    
+    if (modelParent && modelParent.type !== 'canvas') {
+      container.setStyle('marginLeft', '12px');
+    }
+    
   },
-  
+  /**
+   * Overrides the default isDragTop implementation so that the highlight doesn't shift.
+   */
+  _isDragTop : function(drag, drop) {
+    return true;   
+  },
+    
   destroy: function() {
     this._clearContents();
     BlockListRender.superclass.destroy.apply(this);
@@ -73,14 +98,6 @@ BlockListRender = Y.Base.create("baseBlockRender", Y.BaseBlockRender, [], {
     
     y : {
       value : null
-    },
-    
-    isDragTarget : {
-      value: true 
-    },
-    
-    isDropTarget : {
-      value: true
     }
   }
 });

@@ -1,49 +1,9 @@
 /*global Y*/
 var ExpressionBlockRender,
-    DropStack,
     DEFAULT_FILL_COLORS = {}, 
     INLINE_BLOCK_VERTICAL_PADDING_WITH_CONNECTORS = 18,
     INLINE_BLOCK_VERTICAL_PADDING_WITHOUT_CONNECTORS = 10,
-    INLINE_BLOCK_HORIZONTAL_PADDING = 10,
-    /**
-     * This is a hack flag to skip over plugging in drag and drop for expression blocks when creating the
-     * drag node.
-     */
-    hackSkipDrag = false;
-
-/**
- * Helper data structure for ordering drop targets.  Pushing an object from the stack add the item to the top
- * of the stack, or if it already is in the stack, moves it to the front.
- */    
-DropStack = function(cfg) {
-  Y.mix(this, cfg, true);
-  this._stack = [];
-};
-
-DropStack.prototype = {
-  _stack: null,
-  
-  push: function(model, render, isDragTop) {
-    this.pop(model);
-    this._stack.push({
-      model: model,
-      render: render,
-      isDragTop: isDragTop
-    });
-  },
-  
-  pop: function(model) {
-    this._stack = Y.Array.filter(this._stack, function(v) {
-      return v.model !== model;
-    });
-  },
-  
-  peek: function() {
-    var l = this._stack.length;
-    return (l === 0 ? null : this._stack[l - 1]);
-  }
-  
-};
+    INLINE_BLOCK_HORIZONTAL_PADDING = 10;
 
 ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender, [], {
   
@@ -71,7 +31,7 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
   
   _defaultStroke: function() {
     return {
-      weight: 0
+      weight: 1
     };
   },
   
@@ -139,7 +99,9 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
   _renderRepeat: function(renderable, parent) {
     var blockRender = Y.BlockRender(Y.mix(renderable, {
       parent: parent,
-      parentBlock: this.get("model")
+      parentBlock: this.get("model"),
+      useDrag : this.get("useDrag"),
+      useDrop : this.get("useDrop")
     }));
     this._postRenderBlock(blockRender, renderable);
   },
@@ -163,7 +125,9 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
   _renderBlock: function(renderable, parent) {
     var blockRender = Y.BlockRender({
           model: renderable.model,
-          parent: parent 
+          parent: parent,
+          useDrag : this.get("useDrag"),
+          useDrop : this.get("useDrop")
         }),
         container;
     
@@ -187,10 +151,13 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
   _renderCShape: function(renderable, parent) {
     var bl = new Y.BlockListRender({
       parent: parent,
-      model: renderable.model
+      model: renderable.model,
+      useDrag: this.get("useDrag"),
+      useDrop: this.get("useDrop")
     });
     renderable.container = bl.get("container");
     bl.render();
+    this.currentRenders.push(bl);
   },
   
   _renderBody: function(model, container) {
@@ -345,19 +312,12 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
   },
   
   _plugDragDrop: function(container) {
-    var i;
-    
-    if (hackSkipDrag) {
-      return;
-    }
-    
     // If this is a drag target, then we should add the drag plug in
-    if (this.get('isDragTarget')) {
+    if (this.get("useDrag")) {
       this._plugDrag(container);
     }
-    
-    // If this is a drop target, then we should add the drop plug in
-    if (this.get('isDropTarget')) {
+  
+    if (this.get('useDrop')) {
       this._plugDrop(container);
     }
   },
@@ -369,16 +329,6 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
   _plugDrag: function(container) {
     container.plug(Y.Plugin.Drag, { dragMode: 'point' });
     container.dd.on('drag:start', this._onDragStart, this);
-  },
-  
-  _plugDrop: function(container, model) {
-    container.plug(Y.IgnoreOffsetDrop, {
-      block: model
-    });
-
-    container.drop.on('drop:over', this._onDropEnter, this);
-    container.drop.on('drop:enter', this._onDropEnter, this);
-    container.drop.on('drop:exit', this._onDropExit, this);
   },
   
   /**
@@ -412,11 +362,12 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
      // We need to render the drag proxy
      renderable = Y.BlockRender({
        parent: Y.one("body"),
-       model: detached
+       model: detached,
+       useDrag : false,
+       useDrop : false
      });
-     hackSkipDrag = true;
+     
      renderable.render();
-     hackSkipDrag = false;
 
      var renderableContainer = renderable.get("container");
      
@@ -425,95 +376,21 @@ ExpressionBlockRender = Y.Base.create("expressionBlockRender", Y.BaseBlockRender
      
       // Add some styles to the proxy node.
      renderableContainer.setStyles({
-        opacity: '.5',
-        zIndex: 1
-      });
+       opacity: '.5',
+       zIndex: 1
+     });
      renderableContainer.setAttribute("id", Y.guid());
      drag.render = renderable;
      // We also need to correctly fire render events to re-render the rest of the block list
      // We finally need to fix the block model styles
      drag.model = detached;
      drag.dropStack = new DropStack();
-  },
-
-  _onDropEnter: function(e) {
-    var drop = e.drop, drag = e.drag, dropModel, dragModel, topOfStack, isDragTop;
-    dropModel = this.get("model");
-    dragModel = drag.model;
-    console.log("on drop over");
-    if (dragModel && dropModel.isValidDropTarget(dragModel)) {
-      topOfStack = drag.dropStack.peek();
-      isDragTop = this._isDragTop(drag, drop);
-      if (!topOfStack || topOfStack.model !== dropModel) {
-        if (topOfStack) {
-          topOfStack.render.unhighlight();
-        }  
-        drag.dropStack.push(dropModel, this, isDragTop);
-      }
-      this.highlight(isDragTop, dropModel, dragModel);
-    }
-  },
-  
-  highlight: function(isTop, dropModel, dragModel) {
-    var container = this.get("container"),
-        region = container.get("region"),
-        x, y;
-    
-    if (!this._highlightNode || isTop !== this._isTopHighlightNode) {
-      this.unhighlight();
-      this._highlightNode = Y.Node.create('<div class="highlightEle"></div>');
-      Y.one("body").append(this._highlightNode);
-      if (isTop) {
-        x = region.left;
-        y = region.top;
-      }
-      else {
-        x = region.left;
-        y = region.bottom;
-      }
-      this._highlightNode.setXY([x, y]);
-      this._isTopHighlightNode = isTop;
-    }
-  },
-  
-  unhighlight: function() {
-    if (this._highlightNode) {
-      this._highlightNode.remove();
-      this._highlightNode = null;
-    }
-  },
-  
-  /**
-   * Returns true if the mouse position is closer to the top of this block then the bottom
-   * of it.
-   */
-  _isDragTop : function(drag, drop) {
-    var dropTop = drop.region.top,
-        dropBottom = drop.region.bottom,
-        mouseY = drag.mouseXY[1];
-    
-    return Math.abs(mouseY - dropTop) < Math.abs(mouseY - dropBottom);
-  },
-  
-  _onDropExit: function(e) {
-    var drag = e.drag;
-    if (drag.dropStack) {
-      drag.dropStack.pop(this.get("model"));
-    }
-    this.unhighlight();
   }
+
 }, {
   ATTRS: {
     isCopyOnDrag : {
       value: false
-    },
-    
-    isDragTarget : {
-      value: true 
-    },
-    
-    isDropTarget : {
-      value: true
     }
   }
 });

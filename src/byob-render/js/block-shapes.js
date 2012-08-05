@@ -39,21 +39,21 @@ ExpressionBlockShape = Y.Base.create("expressionBlockShape", Y.Shape, [], {
       var tcsHeight = h - cShapeHeight;
       
       // Bottom of the cShape
-      this.quadraticCurveTo(w, h, w - eh, h);
-      this.lineTo(leftConnectorWidth + connectorIndent + connectorWidth, h);
+      this.quadraticCurveTo(w, h - eh, w - eh, h - eh);
+      this.lineTo(leftConnectorWidth + connectorIndent + connectorWidth, h - eh);
       this.quadraticCurveTo(leftConnectorWidth + connectorIndent + connectorWidth, 
-        h + eh, 
+        h, 
         leftConnectorWidth + connectorIndent + connectorWidth - ew, 
-        h + eh);
-      this.lineTo(leftConnectorWidth + connectorIndent + ew, h + eh);
-      this.quadraticCurveTo(leftConnectorWidth + connectorIndent, 
-        h + eh, 
-        leftConnectorWidth + connectorIndent,
         h);
-      this.lineTo(leftConnectorWidth + ew, h);
+      this.lineTo(leftConnectorWidth + connectorIndent + ew, h);
+      this.quadraticCurveTo(leftConnectorWidth + connectorIndent, 
+        h, 
+        leftConnectorWidth + connectorIndent,
+        h - eh);
+      this.lineTo(leftConnectorWidth + ew, h - eh);
       
       // Top of the cShape
-      this.quadraticCurveTo(leftConnectorWidth, h, leftConnectorWidth, h - eh);
+      this.quadraticCurveTo(leftConnectorWidth, h - eh, leftConnectorWidth, h - 2 * eh);
       this.lineTo(leftConnectorWidth, tcsHeight + eh);
       this.quadraticCurveTo(leftConnectorWidth, tcsHeight, leftConnectorWidth + ew, tcsHeight);
       this.lineTo(leftConnectorWidth + connectorIndent, tcsHeight);

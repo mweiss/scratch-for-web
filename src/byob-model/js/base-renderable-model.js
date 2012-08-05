@@ -62,7 +62,7 @@ BaseRenderableModel = Y.Base.create("baseRenderableModel", Y.Model, [], {
    */
   handleRender : function() {
     var parent = this.get('parent');
-    if (parent && parent.type && parent.type !== "canvas") {
+    if (parent && parent.type !== "canvas") {
       parent.handleRender();
     }
     else {

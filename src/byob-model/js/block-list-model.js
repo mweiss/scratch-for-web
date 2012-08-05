@@ -36,6 +36,7 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
   splitBlockList: function(model) {
     var blocks = this.get('blocks'),
         index = blocks.indexOf(model),
+        parent = this.get("parent"),
         newBlocks = new Y.ModelList(), splitBlocks = new Y.ModelList(), splitBlockList, i;
     
     if (index !== -1) { 
@@ -49,6 +50,10 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
       }
       
       this.set('blocks', newBlocks);
+      
+      if (parent && parent.detach) {
+        parent.detach(this);
+      }
       
       if (newBlocks.size() === 0) {
         this.destroy();
@@ -115,6 +120,24 @@ BlockListModel = Y.Base.create('blockListModel', BaseRenderableModel, [], {
    */
   detach: function(model) {
     return this.splitBlockList(model) || null;
+  },
+  
+  /**
+   * Overrides the default isValidDropTarget method.
+   */
+  isValidDropTarget: function(dragTarget) {
+    var parent = this.get('parent'),
+        blocks, firstBlock, firstBlockDef;
+    
+    if (dragTarget.type !== "blockList") {
+      return false;
+    }
+    else {
+      blocks = dragTarget.get("blocks");
+      firstBlock = blocks.item(0);
+      firstBlockDef = firstBlock.get("blockDefinition");
+      return firstBlockDef.type.allowsTopBlocks;
+    }
   }
   
 }, {
